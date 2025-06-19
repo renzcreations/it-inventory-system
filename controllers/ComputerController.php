@@ -723,38 +723,27 @@ class ComputerController extends Controller
 
             $this->db->query("COMMIT");
             $_SESSION['success'] = "Successfully updated $PCName with " . count($PartIDs) . " parts!";
-            $partDetailsHtml = "<div style='overflow-x: auto;'>
-            <table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse; width: 100%; font-size: 14px; color: #ffffff;'>
-                                    <thead>
-                                        <tr style='background-color: #f44336; color: #ffffff;'>
-                                            <th style='padding: 8px;'>No.</th>
-                                            <th style='padding: 8px;'>PR Number</th>
-                                            <th style='padding: 8px;'>Part ID</th>
-                                            <th style='padding: 8px;'>Part Type</th>
-                                            <th style='padding: 8px;'>Brand</th>
-                                            <th style='padding: 8px;'>Model</th>
-                                            <th style='padding: 8px;'>Serial Number</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>";
+            $partDetailsHtml = "";
             $counter = 1;
+
             foreach ($PartIDs as $PartID) {
                 $part = $this->db->query("SELECT PRNumber, PartID, PartType, Brand, Model, SerialNumber FROM parts WHERE PartID = ?", [$PartID]);
                 $parts = $part->fetch(PDO::FETCH_ASSOC);
 
-                $partDetailsHtml .= "<tr>
-                                        <td style='padding: 8px;'>" . $counter++ . "</td>
-                                        <td style='padding: 8px;'>" . ($parts['PRNumber'] ?? 'N/A') . "</td>
-                                        <td style='padding: 8px;'>" . htmlspecialchars($parts['PartID']) . "</td>
-                                        <td style='padding: 8px;'>" . htmlspecialchars($parts['PartType']) . "</td>
-                                        <td style='padding: 8px;'>" . htmlspecialchars($parts['Brand']) . "</td>
-                                        <td style='padding: 8px;'>" . htmlspecialchars($parts['Model']) . "</td>
-                                        <td style='padding: 8px;'>" . htmlspecialchars($parts['SerialNumber']) . "</td>
-                                    </tr>";
+                $partDetailsHtml .= "
+                                    <div style='font-family: Arial, sans-serif; font-size: 14px; color: #f0f0f0; background-color: #1a1a1a; padding: 15px; border-radius: 6px; border-left: 4px solid #f44336; margin-top: 20px;'>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>No.:</strong> $counter</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>PR Number:</strong> " . ($parts['PRNumber'] ?? 'N/A') . "</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Part ID:</strong> " . htmlspecialchars($parts['PartID']) . "</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Part Type:</strong> " . htmlspecialchars($parts['PartType']) . "</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Brand:</strong> " . htmlspecialchars($parts['Brand']) . "</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Model:</strong> " . htmlspecialchars($parts['Model']) . "</p>
+                                        <p style='margin: 0;'><strong style='color: #f44336;'>Serial Number:</strong> " . htmlspecialchars($parts['SerialNumber']) . "</p>
+                                    </div>";
+                $counter++;
             }
-            $partDetailsHtml .= "       </tbody>
-                                    </table>
-                                </div>";
+
+
 
             $registeredEmail = $_ENV['BREVO_EMAIL'];
 
@@ -918,38 +907,21 @@ class ComputerController extends Controller
 
             // Build email content
             if ($assignedEmployeeID && $employeeEmail) {
-                $partDetailsHtml = "<div style='overflow-x: auto;'>
-                                    <table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse; width: 100%; margin-top: 20px; font-size: 14px; color: #ffffff;'>
-                                        <thead style='background-color: #f44336; color: #ffffff;'>
-                                            <tr>
-                                                <th>No.</th>
-                                                <th>PR Number</th>
-                                                <th>Part ID</th>
-                                                <th>Part Type</th>
-                                                <th>Brand</th>
-                                                <th>Model</th>
-                                                <th>Serial Number</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td>1</td>
-                                                <td>" . ($parts['PRNumber'] ?? 'N/A') . "</td>
-                                                <td>" . htmlspecialchars($parts['PartID']) . "</td>
-                                                <td>" . htmlspecialchars($parts['PartType']) . "</td>
-                                                <td>" . htmlspecialchars($parts['Brand']) . "</td>
-                                                <td>" . htmlspecialchars($parts['Model']) . "</td>
-                                                <td>" . htmlspecialchars($parts['SerialNumber']) . "</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                $partDetailsHtml = "
+                                    <div style='font-family: Arial, sans-serif; font-size: 14px; color: #f0f0f0; background-color: #1a1a1a; padding: 15px; border-radius: 6px; border-left: 4px solid #f44336; margin-top: 20px;'>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>No.:</strong> 1</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>PR Number:</strong> " . ($parts['PRNumber'] ?? 'N/A') . "</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Part ID:</strong> " . htmlspecialchars($parts['PartID']) . "</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Part Type:</strong> " . htmlspecialchars($parts['PartType']) . "</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Brand:</strong> " . htmlspecialchars($parts['Brand']) . "</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Model:</strong> " . htmlspecialchars($parts['Model']) . "</p>
+                                        <p style='margin: 0;'><strong style='color: #f44336;'>Serial Number:</strong> " . htmlspecialchars($parts['SerialNumber']) . "</p>
                                     </div>";
-
 
                 $subject = "PC Part Uninstalled - $PCName";
                 $htmlContent = "
                                 <html>
-                                    <body style='background-color: #000000; color: #f0f0f0; font-family: Arial, sans-serif; padding: 30px;'>
+                                    <body style='background-color: #000000; color: #f0f0f0; font-family: Arial, sans-serif; padding: 10px;'>
                                         <div style='max-width: 600px; margin: 0 auto; background-color: #111111; padding: 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(255, 0, 0, 0.2);'>
 
                                         <p style='font-size: 16px;'>Hello " . htmlspecialchars($employeeName) . ",</p>
