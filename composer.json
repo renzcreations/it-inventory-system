@@ -1,0 +1,19 @@
+{
+  "name": "tomarao/lightweight",
+  "autoload": {
+    "psr-4": {
+      "System\\": "system/",
+      "Controllers\\": "controllers/",
+      "Models\\": "models/"
+    }
+  },
+  "authors": [
+    {
+      "name": "tomaraoo",
+      "email": "rtomarao@gmail.com"
+    }
+  ],
+  "require": {
+    "getbrevo/brevo-php": "2.0.4"
+  }
+}

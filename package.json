@@ -1,0 +1,22 @@
+{
+  "name": "lightweight",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail \"php -S localhost:8000\" \"npm run browsersync\" \"npx @tailwindcss/cli -i ./src/css/style.css -o ./src/css/output.css --watch\"",
+    "browsersync": "browser-sync start --proxy localhost:8000 --files \"views/**/*.php,src/css/output.css\" --no-ui --no-notify  --reload-delay 100"
+  },
+  "devDependencies": {
+    "browser-sync": "^3.0.4",
+    "concurrently": "^9.0.1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@tailwindcss/cli": "^4.1.8",
+    "tailwindcss": "^4.1.8"
+  }
+}
