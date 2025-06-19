@@ -1,4 +1,5 @@
 vendor/
 backups/
 node_modules/
+Signature/
 .env
