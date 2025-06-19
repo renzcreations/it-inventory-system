@@ -723,7 +723,8 @@ class ComputerController extends Controller
 
             $this->db->query("COMMIT");
             $_SESSION['success'] = "Successfully updated $PCName with " . count($PartIDs) . " parts!";
-            $partDetailsHtml = "<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse; width: 100%; font-size: 14px; color: #ffffff;'>
+            $partDetailsHtml = "<div style='overflow-x: auto;'>
+            <table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse; width: 100%; font-size: 14px; color: #ffffff;'>
                                     <thead>
                                         <tr style='background-color: #f44336; color: #ffffff;'>
                                             <th style='padding: 8px;'>No.</th>
@@ -751,7 +752,9 @@ class ComputerController extends Controller
                                         <td style='padding: 8px;'>" . htmlspecialchars($parts['SerialNumber']) . "</td>
                                     </tr>";
             }
-            $partDetailsHtml .= "</tbody></table>";
+            $partDetailsHtml .= "       </tbody>
+                                    </table>
+                                </div>";
 
             $registeredEmail = $_ENV['BREVO_EMAIL'];
 
@@ -915,7 +918,7 @@ class ComputerController extends Controller
 
             // Build email content
             if ($assignedEmployeeID && $employeeEmail) {
-                $partDetailsHtml = "
+                $partDetailsHtml = "<div style='overflow-x: auto;'>
                                     <table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse; width: 100%; margin-top: 20px; font-size: 14px; color: #ffffff;'>
                                         <thead style='background-color: #f44336; color: #ffffff;'>
                                             <tr>
@@ -939,7 +942,8 @@ class ComputerController extends Controller
                                                 <td>" . htmlspecialchars($parts['SerialNumber']) . "</td>
                                             </tr>
                                         </tbody>
-                                    </table>";
+                                    </table>
+                                    </div>";
 
 
                 $subject = "PC Part Uninstalled - $PCName";
