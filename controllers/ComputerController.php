@@ -266,11 +266,11 @@ class ComputerController extends Controller
                                         <p style='color: #f44336; font-size: 16px;'><strong>Computer name:</strong> {$data['PCName']}</p>
                                         <p style='color: #f44336; font-size: 16px; margin-bottom: 20px;'><strong>Assignment Date:</strong> $created_at</p>
 
-                                        <p style='font-size: 16px;'>Hi " . htmlspecialchars($data['Name']) . ",</p>
+                                        <p style='font-size: 16px;'>Hi " . ($data['Name']) . ",</p>
 
                                         <p>
                                             Welcome to the <strong style='color: #f44336;'>HPL Game Design</strong> team! We're excited to have you with us. 😊<br>
-                                            I'm <strong>" . htmlspecialchars($senderName) . "</strong> from the IT Department, and your PC is now fully prepared and ready for use.
+                                            I'm <strong>" . ($senderName) . "</strong> from the IT Department, and your PC is now fully prepared and ready for use.
                                         </p>
 
                                         <p>
@@ -300,7 +300,7 @@ class ComputerController extends Controller
 
                                         <br/>
                                         <p style='font-weight: bold;'>Warm regards,</p>
-                                        <p>" . htmlspecialchars($senderName) . "</p>
+                                        <p>" . ($senderName) . "</p>
                                         <p>IT Department</p>
 
                                         </div>
@@ -734,11 +734,11 @@ class ComputerController extends Controller
                                     <div style='font-family: Arial, sans-serif; font-size: 14px; color: #f0f0f0; background-color: #1a1a1a; padding: 15px; border-radius: 6px; border-left: 4px solid #f44336; margin-top: 20px;'>
                                         <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>No.:</strong> $counter</p>
                                         <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>PR Number:</strong> " . ($parts['PRNumber'] ?? 'N/A') . "</p>
-                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Part ID:</strong> " . htmlspecialchars($parts['PartID']) . "</p>
-                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Part Type:</strong> " . htmlspecialchars($parts['PartType']) . "</p>
-                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Brand:</strong> " . htmlspecialchars($parts['Brand']) . "</p>
-                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Model:</strong> " . htmlspecialchars($parts['Model']) . "</p>
-                                        <p style='margin: 0;'><strong style='color: #f44336;'>Serial Number:</strong> " . htmlspecialchars($parts['SerialNumber']) . "</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Part ID:</strong> " . ($parts['PartID']) . "</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Part Type:</strong> " . ($parts['PartType']) . "</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Brand:</strong> " . ($parts['Brand']) . "</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Model:</strong> " . ($parts['Model']) . "</p>
+                                        <p style='margin: 0;'><strong style='color: #f44336;'>Serial Number:</strong> " . ($parts['SerialNumber']) . "</p>
                                     </div>";
                 $counter++;
             }
@@ -756,7 +756,7 @@ class ComputerController extends Controller
                                     <body style='background-color: #000000; color: #f0f0f0; font-family: Arial, sans-serif; padding: 30px;'>
                                         <div style='max-width: 600px; margin: 0 auto; background-color: #111111; padding: 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(255, 0, 0, 0.2);'>
 
-                                        <p style='font-size: 16px;'>Hello " . htmlspecialchars($employeeName) . ",</p>
+                                        <p style='font-size: 16px;'>Hello " . ($employeeName) . ",</p>
 
                                         <p style='font-size: 16px;'>
                                             This is to notify you that your assigned PC <strong style='color: #f44336;'>$PCName</strong> has been updated with the following part(s):
@@ -911,11 +911,11 @@ class ComputerController extends Controller
                                     <div style='font-family: Arial, sans-serif; font-size: 14px; color: #f0f0f0; background-color: #1a1a1a; padding: 15px; border-radius: 6px; border-left: 4px solid #f44336; margin-top: 20px;'>
                                         <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>No.:</strong> 1</p>
                                         <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>PR Number:</strong> " . ($parts['PRNumber'] ?? 'N/A') . "</p>
-                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Part ID:</strong> " . htmlspecialchars($parts['PartID']) . "</p>
-                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Part Type:</strong> " . htmlspecialchars($parts['PartType']) . "</p>
-                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Brand:</strong> " . htmlspecialchars($parts['Brand']) . "</p>
-                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Model:</strong> " . htmlspecialchars($parts['Model']) . "</p>
-                                        <p style='margin: 0;'><strong style='color: #f44336;'>Serial Number:</strong> " . htmlspecialchars($parts['SerialNumber']) . "</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Part ID:</strong> " . ($parts['PartID']) . "</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Part Type:</strong> " . ($parts['PartType']) . "</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Brand:</strong> " . ($parts['Brand']) . "</p>
+                                        <p style='margin: 0 0 8px 0;'><strong style='color: #f44336;'>Model:</strong> " . ($parts['Model']) . "</p>
+                                        <p style='margin: 0;'><strong style='color: #f44336;'>Serial Number:</strong> " . ($parts['SerialNumber']) . "</p>
                                     </div>";
 
                 $subject = "PC Part Uninstalled - $PCName";
@@ -924,7 +924,7 @@ class ComputerController extends Controller
                                     <body style='background-color: #000000; color: #f0f0f0; font-family: Arial, sans-serif; padding: 10px;'>
                                         <div style='max-width: 600px; margin: 0 auto; background-color: #111111; padding: 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(255, 0, 0, 0.2);'>
 
-                                        <p style='font-size: 16px;'>Hello " . htmlspecialchars($employeeName) . ",</p>
+                                        <p style='font-size: 16px;'>Hello " . ($employeeName) . ",</p>
 
                                         <p style='font-size: 16px;'>
                                             This is to inform you that the following part has been <strong style='color: #f44336;'>uninstalled</strong> from your assigned PC <strong style='color: #f44336;'>$PCName</strong>:

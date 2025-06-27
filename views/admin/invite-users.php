@@ -31,26 +31,26 @@
                     <div class="bg-gray-50 rounded-lg p-4 flex flex-col md:flex-row items-center gap-4">
                         <div class="flex-1">
                             <div class="flex lg:items-start items-center lg:justify-start justify-between lg:mb-1 mb-6">
-                                <p class="font-medium text-gray-900"><?= htmlspecialchars($data['name']) ?></p>
+                                <p class="font-medium text-gray-900"><?= ($data['name']) ?></p>
                                 <span class="ml-2 text-sm bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
-                                    <?= htmlspecialchars($data['username']) ?>
+                                    <?= ($data['username']) ?>
                                 </span>
                             </div>
-                            <p class="text-sm text-gray-600 break-all"><?= htmlspecialchars($data['email']) ?></p>
+                            <p class="text-sm text-gray-600 break-all"><?= ($data['email']) ?></p>
                         </div>
 
                         <form action="/users/update" method="post" class="w-full md:w-auto">
-                            <input type="hidden" name="username" value="<?= htmlspecialchars($data['username']) ?>">
+                            <input type="hidden" name="username" value="<?= ($data['username']) ?>">
 
                             <select name="type" id="type"
                                 class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                                 onchange="this.form.submit()">
-                                <option value="<?= htmlspecialchars($data['type']) ?>" selected>
-                                    <?= htmlspecialchars($data['type']) ?>
+                                <option value="<?= ($data['type']) ?>" selected>
+                                    <?= ($data['type']) ?>
                                 </option>
                                 <option
-                                    value="<?= htmlspecialchars($data['type'] === 'Administrator' ? 'Support' : 'Administrator') ?>">
-                                    <?= htmlspecialchars($data['type'] === 'Administrator' ? 'Support' : 'Administrator') ?>
+                                    value="<?= ($data['type'] === 'Administrator' ? 'Support' : 'Administrator') ?>">
+                                    <?= ($data['type'] === 'Administrator' ? 'Support' : 'Administrator') ?>
                                 </option>
                             </select>
                         </form>
@@ -75,9 +75,9 @@
                 <?php foreach ($invited as $item): ?>
                     <div class="bg-gray-50 rounded-lg p-4 flex flex-col md:flex-row items-center gap-4">
                         <div class="flex-1">
-                            <p class="font-medium text-gray-900 break-all"><?= htmlspecialchars($item['email']) ?></p>
+                            <p class="font-medium text-gray-900 break-all"><?= ($item['email']) ?></p>
                             <p class="text-sm text-gray-600">
-                                Invited <?= htmlspecialchars(date("M j, Y g:i A", strtotime($item['created_at']))) ?>
+                                Invited <?= (date("M j, Y g:i A", strtotime($item['created_at']))) ?>
                             </p>
                         </div>
 
@@ -86,7 +86,7 @@
                                 <input type="hidden" name="email" value="<?= $item['email'] ?>">
 
                                 <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-lg text-sm break-all">
-                                    <?= htmlspecialchars($item['email_code']) ?>
+                                    <?= ($item['email_code']) ?>
                                 </span>
                                 <button type="submit"
                                     class="text-amber-600 hover:text-amber-700 transition-colors duration-200">

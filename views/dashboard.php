@@ -7,7 +7,6 @@
                 <div class="flex md:flex-row flex-col items-center justify-between mb-6">
                     <h2 class="text-xl font-semibold text-gray-800">Inventory Reports</h2>
                     <form action="/generate-report" method="post" enctype="multipart/form-data">
-                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
                         <button
                             class="bg-amber-200 px-4 py-2 rounded-lg hover:bg-amber-300 disabled:cursor-not-allowed disabled:hover:bg-amber-200 disabled:opacity-50 transition-colors text-sm font-medium"
                             disabled>
@@ -112,11 +111,11 @@
                                     <?php foreach ($accessories as $item): ?>
                                         <tr class="hover:bg-gray-50 transition-colors">
                                             <td class="px-4 py-3 font-medium text-gray-800">
-                                                <?= htmlspecialchars($item['AccessoriesName']) ?>
+                                                <?= ($item['AccessoriesName']) ?>
                                             </td>
-                                            <td class="px-4 py-3"><?= htmlspecialchars($item['totalQty']) ?></td>
-                                            <td class="px-4 py-3"><?= htmlspecialchars($item['totalAssigned'] ?? '-') ?></td>
-                                            <td class="px-4 py-3"><?= htmlspecialchars($item['totalDefective'] ?? '-') ?></td>
+                                            <td class="px-4 py-3"><?= ($item['totalQty']) ?></td>
+                                            <td class="px-4 py-3"><?= ($item['totalAssigned'] ?? '-') ?></td>
+                                            <td class="px-4 py-3"><?= ($item['totalDefective'] ?? '-') ?></td>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php else: ?>
@@ -226,7 +225,7 @@
                             <div class="flex items-start p-4 bg-gray-50 rounded-lg border-l-4 border-amber-500">
                                 <div class="ml-3">
                                     <p class="text-sm font-medium text-gray-800">
-                                        <?= htmlspecialchars($employee['FirstName'] . ' ' . $employee['LastName']) ?>
+                                        <?= ($employee['FirstName'] . ' ' . $employee['LastName']) ?>
                                     </p>
                                     <p class="text-sm text-gray-600 mt-1">
                                         Signed employment equipment agreement

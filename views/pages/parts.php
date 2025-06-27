@@ -40,8 +40,8 @@
                             class="w-full px-4 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-amber-500">
                             <option value="">All Types</option>
                             <?php foreach ($types as $type): ?>
-                                <option value="<?= htmlspecialchars($type['PartType']) ?>">
-                                    <?= htmlspecialchars($type['PartType']) ?>
+                                <option value="<?= ($type['PartType']) ?>">
+                                    <?= ($type['PartType']) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -239,12 +239,12 @@
                     <?php if (!empty($temp_part)): ?>
                         <?php foreach ($temp_part as $data): ?>
                             <?php
-                            $PRNumber = htmlspecialchars($data['PRNumber'] ?? '');
-                            $PartID = htmlspecialchars($data['PartID']);
-                            $PartType = htmlspecialchars($data['PartType']);
-                            $Brand = htmlspecialchars($data['Brand']);
-                            $Model = htmlspecialchars($data['Model']);
-                            $SerialNumber = htmlspecialchars($data['SerialNumber']);
+                            $PRNumber = ($data['PRNumber'] ?? '');
+                            $PartID = ($data['PartID']);
+                            $PartType = ($data['PartType']);
+                            $Brand = ($data['Brand']);
+                            $Model = ($data['Model']);
+                            $SerialNumber = ($data['SerialNumber']);
                             ?>
                             <tr>
                                 <td class="px-6 py-4"><?= $PRNumber ?></td>
@@ -285,12 +285,12 @@
                 <form action="/parts/store" method="post" id="tempParts">
                     <?php if (!empty($temp_part)): ?>
                         <?php foreach ($temp_part as $data): ?>
-                            <input type="hidden" name="PRNumber[]" value="<?= htmlspecialchars($data['PRNumber'] ?? '') ?>">
-                            <input type="hidden" name="PartID[]" value="<?= htmlspecialchars($data['PartID']) ?>">
-                            <input type="hidden" name="PartType[]" value="<?= htmlspecialchars($data['PartType']) ?>">
-                            <input type="hidden" name="Brand[]" value="<?= htmlspecialchars($data['Brand']) ?>">
-                            <input type="hidden" name="Model[]" value="<?= htmlspecialchars($data['Model']) ?>">
-                            <input type="hidden" name="SerialNumber[]" value="<?= htmlspecialchars($data['SerialNumber']) ?>">
+                            <input type="hidden" name="PRNumber[]" value="<?= ($data['PRNumber'] ?? '') ?>">
+                            <input type="hidden" name="PartID[]" value="<?= ($data['PartID']) ?>">
+                            <input type="hidden" name="PartType[]" value="<?= ($data['PartType']) ?>">
+                            <input type="hidden" name="Brand[]" value="<?= ($data['Brand']) ?>">
+                            <input type="hidden" name="Model[]" value="<?= ($data['Model']) ?>">
+                            <input type="hidden" name="SerialNumber[]" value="<?= ($data['SerialNumber']) ?>">
                         <?php endforeach; ?>
                         <button type="submit" class="bg-black py-2 w-full text-white hover:opacity-80"
                             id="addToParts">Submit</button>
@@ -331,7 +331,7 @@
                         <?php if (!empty($tempPC)): ?>
                             <tr>
                                 <td colspan="2" class="px-6 py-4 text-center md:text-lg text-md">
-                                    <?= htmlspecialchars($tempPC['PCName']) ?>
+                                    <?= ($tempPC['PCName']) ?>
                                 </td>
                             </tr>
                         <?php else: ?>
@@ -352,16 +352,16 @@
                                 <tr class="hover:bg-gray-100">
                                     <td class="px-6 py-4 text-left">
                                         <span class="font-medium text-gray-800">
-                                            <?= htmlspecialchars($data['PartType'] . ' ' . $data['Brand'] . ' ' . $data['Model']) ?>
+                                            <?= ($data['PartType'] . ' ' . $data['Brand'] . ' ' . $data['Model']) ?>
                                         </span>
-                                        <span class="text-xs italic">(<?= htmlspecialchars($data['SerialNumber']) ?>)</span>
+                                        <span class="text-xs italic">(<?= ($data['SerialNumber']) ?>)</span>
                                     </td>
                                     <td class="px-6 py-4 text-left">
                                         <form action="/computer/delete" method="post" id="removePart">
 
-                                            <input type="hidden" name="PartID" value="<?= htmlspecialchars($data['PartID']) ?>">
+                                            <input type="hidden" name="PartID" value="<?= ($data['PartID']) ?>">
                                             <input type="hidden" name="Brand"
-                                                value="<?= htmlspecialchars($data['Brand'] . ' ' . $data['Model']) ?>">
+                                                value="<?= ($data['Brand'] . ' ' . $data['Model']) ?>">
                                             <button type="submit"
                                                 class="flex-1 bg-red-600 text-white px-6 py-3 rounded hover:bg-red-700 transition-colors"
                                                 name="remove">
@@ -378,13 +378,13 @@
                                 <td colspan="2" class="px-6 py-4 text-left">
                                     <form action="/computer/update" method="post" id="update-pc">
                                         <?php if (!empty($tempPC)): ?>
-                                            <input type="hidden" name="PCID[]" value="<?= htmlspecialchars($tempPC['PCID']) ?>">
+                                            <input type="hidden" name="PCID[]" value="<?= ($tempPC['PCID']) ?>">
                                             <input type="hidden" name="PCName"
-                                                value="<?= htmlspecialchars($tempPC['PCName']) ?>">
+                                                value="<?= ($tempPC['PCName']) ?>">
                                         <?php endif; ?>
                                         <?php foreach ($tempPart as $data): ?>
                                             <input type="hidden" name="PartID[]"
-                                                value="<?= htmlspecialchars($data['PartID']) ?>">
+                                                value="<?= ($data['PartID']) ?>">
                                         <?php endforeach; ?>
                                         <button type="submit" class="bg-black px-6 py-2 text-white hover:opacity-80 w-full"
                                             id="updateComputer"> Update Computer </button>
@@ -416,8 +416,8 @@
                         class="w-full px-4 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-amber-500">
                         <option value="">All Types</option>
                         <?php foreach ($types as $type): ?>
-                            <option value="<?= htmlspecialchars($type['PartType']) ?>">
-                                <?= htmlspecialchars($type['PartType']) ?>
+                            <option value="<?= ($type['PartType']) ?>">
+                                <?= ($type['PartType']) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>

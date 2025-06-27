@@ -147,10 +147,10 @@
                     <form method="post" action="/computer/create" class="flex flex-col gap-5">
                         <input type="text" name="name" placeholder="Search employee by name or id"
                             class="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-amber-500"
-                            required value="<?= htmlspecialchars($_POST['name'] ?? '') ?>">
+                            required value="<?= ($_POST['name'] ?? '') ?>">
                         <input type="text" name="computer" placeholder="Search available computer by id or name"
                             class="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-amber-500"
-                            required value="<?= htmlspecialchars($_POST['computer'] ?? '') ?>">
+                            required value="<?= ($_POST['computer'] ?? '') ?>">
                         <button type="submit" name="search"
                             class="bg-black text-white px-6 py-2 hover:bg-gray-800 transition-colors">
                             Search
@@ -175,19 +175,19 @@
                                     <?php foreach ($tempAssignments as $item): ?>
                                         <tr class="hover:bg-gray-100 border-b">
                                             <td class="px-6 py-4 text-left">
-                                                <?= htmlspecialchars($item['EmployeeID']) ?> -
-                                                <?= htmlspecialchars($item['FirstName'] . ' ' . $item['LastName']) ?>
+                                                <?= ($item['EmployeeID']) ?> -
+                                                <?= ($item['FirstName'] . ' ' . $item['LastName']) ?>
                                             </td>
                                             <td class="px-6 py-4 text-left">
-                                                <?= htmlspecialchars($item['PCID']) ?> -
-                                                <?= htmlspecialchars($item['PCName']) ?>
+                                                <?= ($item['PCID']) ?> -
+                                                <?= ($item['PCName']) ?>
                                             </td>
                                             <td class="px-6 py-4 text-left">
                                                 <form action="/computer/remove" method="post" id="removeTempAssignment">
                                                     <input type="hidden" name="EmployeeID"
-                                                        value="<?= htmlspecialchars($item['EmployeeID']) ?>">
+                                                        value="<?= ($item['EmployeeID']) ?>">
                                                     <input type="hidden" name="name"
-                                                        value="<?= htmlspecialchars($item['FirstName'] . ' ' . $item['LastName']) ?>">
+                                                        value="<?= ($item['FirstName'] . ' ' . $item['LastName']) ?>">
                                                     <button type="submit"
                                                         class="flex-1 bg-red-600 text-white px-6 py-3 rounded hover:bg-red-700 transition-colors"
                                                         name="removeTemp">

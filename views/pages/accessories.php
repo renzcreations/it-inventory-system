@@ -37,17 +37,18 @@
                         <select x-model="brandFilter"
                             class="w-full px-4 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-amber-500">
                             <option value="" selected class="bg-gray-400">Filter By Brand</option>
-                            <template
-                                x-if="accFilter && brandsByAccessory[accFilter] && brandsByAccessory[accFilter].length">
-                                <template x-for="brand in [...new Set(brandsByAccessory[accFilter])]" :key="brand">
-                                    <option :value="brand" x-text="brand"></option>
+                           <template x-if="accFilter && brandsByAccessory[accFilter] && brandsByAccessory[accFilter].length">
+                                <template x-for="brand in [...new Set(brandsByAccessory[accFilter])]">
+                                    <option :value="brand || 'no-brand'" x-text="brand || 'No Available Brands'"></option>
                                 </template>
                             </template>
+
                             <template x-if="!accFilter">
-                                <template x-for="brand in allBrands" :key="brand">
-                                    <option :value="brand" x-text="brand"></option>
+                                <template x-for="brand in allBrands">
+                                    <option :value="brand || 'no-brand'" x-text="brand || 'No Available Brands'"></option>
                                 </template>
                             </template>
+
                         </select>
                     </div>
                 </div>
@@ -68,8 +69,7 @@
                 <tbody class="divide-y divide-gray-200 text-sm">
                     <template x-for="(item, index) in paginatedItems" :key="item.AccessoriesID + '-' + index">
                         <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 text-left"
-                                x-text="item.AccessoriesName + ' (' + (item.PRNumber ?? 'No PR Number | Old Data') + ')'">
+                            <td class="px-6 py-4 text-left" x-text="item.AccessoriesName + ' (' + (item.PRNumber ?? 'No PR Number | Old Data') + ')'">
                             </td>
                             <td class="px-6 py-4 text-left" x-text="item.Brand ?? 'No Brand | Old Data'"></td>
                             <td class="px-6 py-4 text-left" x-text="item.Qty + ' pcs'"></td>
@@ -152,12 +152,12 @@
                                 x-if="accFilterReturn && returnBrandAccessory[accFilterReturn] && returnBrandAccessory[accFilterReturn].length">
                                 <template x-for="brand in [...new Set(returnBrandAccessory[accFilterReturn])]"
                                     :key="brand">
-                                    <option :value="brand" x-text="brand"></option>
+                                    <option :value="brand || 'no-brand'" x-text="brand || 'No Available Brands'"></option>
                                 </template>
                             </template>
                             <template x-if="!accFilterReturn">
                                 <template x-for="brand in allBrandsReturn" :key="brand">
-                                    <option :value="brand" x-text="brand"></option>
+                                    <option :value="brand || 'no-brand'" x-text="brand || 'No Available Brands'"></option>
                                 </template>
                             </template>
                         </select>
@@ -288,11 +288,11 @@
                     <?php if (!empty($accessories_temp)): ?>
                         <?php foreach ($accessories_temp as $data): ?>
                             <?php
-                            $PRNumber = htmlspecialchars($data['PRNumber'] ? $data['PRNumber'] : 'No PR Number');
-                            $AccessoriesID = htmlspecialchars($data['AccessoriesID'] ?? '');
-                            $AccessoriesName = htmlspecialchars($data['AccessoriesName'] ?? '');
-                            $Brand = htmlspecialchars($data['Brand'] ?? '');
-                            $Quantity = htmlspecialchars($data['Qty'] ?? '');
+                            $PRNumber = ($data['PRNumber'] ? $data['PRNumber'] : 'No PR Number');
+                            $AccessoriesID = ($data['AccessoriesID'] ?? '');
+                            $AccessoriesName = ($data['AccessoriesName'] ?? '');
+                            $Brand = ($data['Brand'] ?? 'No Brand');
+                            $Quantity = ($data['Qty'] ?? '');
                             ?>
                             <tr>
                                 <td class="px-6 py-4"><?= $PRNumber ?></td>
@@ -334,13 +334,6 @@
                 <?php if (!empty($accessories_temp)): ?>
                     <form action="/accessories/store" method="post">
                         <?php if (!empty($accessories)): ?>
-                            <?php foreach ($accessories as $data): ?>
-                                <input type="hidden" name="PRNumber[]" value="<?= htmlspecialchars($data['PRNumber'] ?? '') ?>">
-                                <input type="hidden" name="AccessoriesID[]" value="<?= htmlspecialchars($data['AccessoriesID']) ?>">
-                                <input type="hidden" name="AccessoriesName[]"
-                                    value="<?= htmlspecialchars($data['AccessoriesName']) ?>">
-                                <input type="hidden" name="Brand[]" value="<?= htmlspecialchars($data['Brand']) ?>">
-                            <?php endforeach; ?>
                             <button type="submit" class="bg-black py-2 w-full text-white hover:opacity-80"
                                 id="addToParts">Submit</button>
                         <?php endif; ?>
@@ -352,7 +345,7 @@
 
     <!-- Defective Modal -->
     <div class="fixed inset-0 bg-black/50 hidden min-h-screen z-40" id="overlay"></div>
-    <div id="modal" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 hidden z-50">
+    <div class="fixed inset-0 items-center justify-center hidden z-50" id="modal">
         <div class="bg-white p-8 rounded-xl shadow-xl max-w-2xl w-full mx-4">
             <form action="/accessories/defective" method="post" class="space-y-6">
                 <h2 class="text-2xl font-bold text-gray-800 border-b border-gray-200 pb-4">
@@ -422,7 +415,7 @@
             accFilter: '',
             brandFilter: '',
             currentPage: 1,
-            itemsPerPage: 15,
+            itemsPerPage: 5,
             filteredHistory: [],
             history: <?= json_encode($history) ?>,
             brandsByAccessory: <?= json_encode($brandsByAccessory) ?>,
@@ -503,7 +496,7 @@
             accFilterReturn: '',
             brandFilterReturn: '',
             currentPage: 1,
-            itemsPerPage: 15,
+            itemsPerPage: 5,
             filteredHistory: [],
             history: <?= json_encode($returnGroupHistory) ?>,
             returnBrandAccessory: <?= json_encode($returnBrandAccessory) ?>,

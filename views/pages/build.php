@@ -12,7 +12,7 @@
 
                     <?php if (!empty($tempPart)): ?>
                         <?php foreach ($tempPart as $item): ?>
-                            <input type="hidden" name="PartID[]" value="<?= htmlspecialchars($item['PartID']) ?>">
+                            <input type="hidden" name="PartID[]" value="<?= ($item['PartID']) ?>">
                         <?php endforeach; ?>
                     <?php endif; ?>
                     <!-- Status Messages -->
@@ -41,15 +41,15 @@
                                 <tr class="hover:bg-gray-100">
                                     <td class="px-6 py-4 text-left ">
                                         <span class="font-medium text-gray-800">
-                                            <?= htmlspecialchars($data['PartType'] . ' ' . $data['Brand'] . ' ' . $data['Model']) ?>
+                                            <?= ($data['PartType'] . ' ' . $data['Brand'] . ' ' . $data['Model']) ?>
                                         </span>
-                                        <span class="text-xs italic">(<?= htmlspecialchars($data['SerialNumber']) ?>)</span>
+                                        <span class="text-xs italic">(<?= ($data['SerialNumber']) ?>)</span>
                                     </td>
                                     <td class="px-6 py-4 text-left ">
                                         <form action="/build/remove" method="post" id="removePart">
-                                            <input type="hidden" name="PartID" value="<?= htmlspecialchars($data['PartID']) ?>">
+                                            <input type="hidden" name="PartID" value="<?= ($data['PartID']) ?>">
                                             <input type="hidden" name="Brand"
-                                                value="<?= htmlspecialchars($data['Brand'] . ' ' . $data['Model']) ?>">
+                                                value="<?= ($data['Brand'] . ' ' . $data['Model']) ?>">
                                             <button type="submit"
                                                 class="flex-1 bg-red-600 text-white px-6 py-3 rounded hover:bg-red-700 transition-colors"
                                                 name="remove">
@@ -86,8 +86,8 @@
                         class="flex-1 px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-amber-500">
                         <option value="">All Types</option>
                         <?php foreach ($type as $types): ?>
-                            <option value="<?= htmlspecialchars($types['PartType']) ?>">
-                                <?= htmlspecialchars($types['PartType']) ?>
+                            <option value="<?= ($types['PartType']) ?>">
+                                <?= ($types['PartType']) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -185,7 +185,7 @@
                 }
                 this.isChecking = true;
                 try {
-                    const response = await fetch(`http://localhost:8000/build/check?name=${encodeURIComponent(this.pcName)}`); //change the url to production url
+                    const response = await fetch(`https://hplinventory.22web.org/build/check?name=${encodeURIComponent(this.pcName)}`); //change the url to production url
                     if (!response.ok) throw new Error('Network error');
                     const data = await response.json();
                     this.isAvailable = data.available;

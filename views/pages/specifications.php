@@ -12,7 +12,7 @@
     <div class="mb-8">
         <?php if (!empty($data)): ?>
             <?php foreach ($data as $item): ?>
-                <h1 class="text-3xl font-bold text-gray-900"><?= htmlspecialchars($item['PCName']) ?> Specifications</h1>
+                <h1 class="text-3xl font-bold text-gray-900"><?= ($item['PCName']) ?> Specifications</h1>
             <?php endforeach; ?>
         <?php endif; ?>
     </div>
@@ -36,22 +36,22 @@
                         <?php foreach ($parts as $data): ?>
                             <tr class="hover:bg-gray-50 transition-colors duration-200">
                                 <td class="px-6 py-4 text-sm text-gray-900 font-medium uppercase">
-                                    <?= htmlspecialchars($data['uniqueID']) ?>
+                                    <?= ($data['uniqueID']) ?>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-600"><?= htmlspecialchars($data['PartType']) ?></td>
-                                <td class="px-6 py-4 text-sm text-gray-600"><?= htmlspecialchars($data['Brand']) ?></td>
-                                <td class="px-6 py-4 text-sm text-gray-600"><?= htmlspecialchars($data['Model']) ?></td>
+                                <td class="px-6 py-4 text-sm text-gray-600"><?= ($data['PartType']) ?></td>
+                                <td class="px-6 py-4 text-sm text-gray-600"><?= ($data['Brand']) ?></td>
+                                <td class="px-6 py-4 text-sm text-gray-600"><?= ($data['Model']) ?></td>
                                 <td class="px-6 py-4 text-sm text-gray-600">
-                                    <?= htmlspecialchars($data['SerialNumber'] ?? 'No Serial Number') ?>
+                                    <?= ($data['SerialNumber'] ?? 'No Serial Number') ?>
                                 </td>
                                 <td class="px-6 py-4 float-right">
                                     <form action="/computer/uninstall" method="post" class="inline">
                                         <input type="hidden" name="remove-part" value="1">
                                         <input type="hidden" name="Status" value="Available">
                                         <input type="hidden" name="HistoryStatus" value="Returned">
-                                        <input type="hidden" name="PartID" value="<?= htmlspecialchars($data['PartID']) ?>">
-                                        <input type="hidden" name="PCName" value="<?= htmlspecialchars($data['PCName']) ?>">
-                                        <input type="hidden" name="Brand" value="<?= htmlspecialchars($data['Brand']) ?>">
+                                        <input type="hidden" name="PartID" value="<?= ($data['PartID']) ?>">
+                                        <input type="hidden" name="PCName" value="<?= ($data['PCName']) ?>">
+                                        <input type="hidden" name="Brand" value="<?= ($data['Brand']) ?>">
 
                                         <button type="submit"
                                             class="flex bg-red-600 text-white p-2 rounded hover:bg-red-700 transition-colors"

@@ -41,10 +41,10 @@
             <h1 class="text-3xl font-bold text-gray-900 uppercase">HPL Gamedesign Corporation</h1>
             <div class="mt-4 text-gray-600">
                 <?php if (!empty($result) && isset($result->address) && isset($result->email) && isset($result->contact)): ?>
-                    <p><?= htmlspecialchars($result->address) ?></p>
+                    <p><?= ($result->address) ?></p>
                     <p class="mt-2">
-                        <?= htmlspecialchars($result->email) ?> •
-                        <?= htmlspecialchars($result->contact) ?> •
+                        <?= ($result->email) ?> •
+                        <?= ($result->contact) ?> •
                         (02) 8 808 6920
                     </p>
                 <?php else: ?>
@@ -63,7 +63,7 @@
             <h2 class="text-2xl font-bold text-center text-gray-900 mb-6">EMPLOYEE EQUIPMENT AGREEMENT</h2>
 
             <p>I, <span class="font-semibold underline">
-                    <?= !empty($name) ? htmlspecialchars($name) : 'No Data Found' ?>
+                    <?= !empty($name) ? ($name) : 'No Data Found' ?>
                 </span>, hereby acknowledge and agree to the following terms and conditions regarding the equipment
                 supplied to me by HPL Gamedesign Corporation, referred to as the Company:
             </p>
@@ -134,11 +134,11 @@
 
         <!-- Equipment Table -->
         <div class="mt-8 overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-            <table class="w-full">
+            <table class="w-full uppercase">
                 <thead>
                     <tr class="bg-black text-white">
                         <th colspan="5" class="px-6 py-4 text-left font-semibold">
-                            <?= !empty($PCName) ? htmlspecialchars($PCName) : 'No System Specified' ?>
+                            <?= !empty($PCName) ? ($PCName) : 'No System Specified' ?>
                         </th>
                     </tr>
                     <tr class="bg-gray-900 text-gray-100">
@@ -154,13 +154,13 @@
                         <?php foreach ($parts as $part): ?>
                             <tr class="hover:bg-gray-50 transition-colors">
                                 <td class="px-6 py-4 font-mono font-semibold text-amber-700 bg-amber-50 uppercase">
-                                    <?= htmlspecialchars($part['uniqueID']) ?>
+                                    <?= ($part['uniqueID']) ?>
                                 </td>
-                                <td class="px-6 py-4"><?= htmlspecialchars($part['PartType']) ?></td>
-                                <td class="px-6 py-4"><?= htmlspecialchars($part['Brand']) ?></td>
-                                <td class="px-6 py-4"><?= htmlspecialchars($part['Model']) ?></td>
+                                <td class="px-6 py-4"><?= ($part['PartType']) ?></td>
+                                <td class="px-6 py-4"><?= ($part['Brand']) ?></td>
+                                <td class="px-6 py-4"><?= ($part['Model']) ?></td>
                                 <td class="px-6 py-4 font-mono text-gray-600 break-all">
-                                    <?= htmlspecialchars($part['SerialNumber']) ?>
+                                    <?= ($part['SerialNumber']) ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -175,7 +175,7 @@
                                             <?php foreach ($items as $accessory): ?>
                                                 <span
                                                     class="px-3 py-1 bg-white rounded-full text-sm shadow-sm border border-amber-200 flex items-center gap-3">
-                                                    <?= htmlspecialchars($accessory['AccessoriesName'] . ' - ' . $accessory['PRNumber']) ?>
+                                                   <?= $accessory['AccessoriesName'] . ' - ' . ($accessory['PRNumber'] ?? $accessory['AccessoriesID']) ?>
                                                     <form action="/accessories/delete" method="post">
                                                         <input type="hidden" name="Status" value="Returned">
                                                         <input type="hidden" name="EmployeeID" value="<?= $EmployeeID ?>">
@@ -201,7 +201,7 @@
                     <?php else: ?>
                         <tr>
                             <td colspan="5" class="px-6 py-8 text-center text-gray-500 italic">
-                                No equipment assigned for <?= htmlspecialchars($name) ?>
+                                No equipment assigned for <?= ($name) ?>
                             </td>
                         </tr>
                     <?php endif; ?>
@@ -226,8 +226,8 @@
                                         class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparen">
                                         <option value="">-- Select <?= $accessoriesName ?> --</option>
                                         <?php foreach ($items as $item): ?>
-                                            <option value="<?= $item['PRNumber'] ?>">
-                                                <?= $item['Brand'] . ' - ' . $item['PRNumber'] . ' (' . $item['Qty'] . ')' ?>
+                                            <option value="<?= $item['PRNumber'] ?? $item['AccessoriesID'] ?>">
+                                               <?= ($item['Brand'] ?? 'No Brand') . ' - ' . ($item['PRNumber'] ?? 'No PR Number') . ' (' . ($item['Qty'] ?? '0') . ')' ?>
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
@@ -236,7 +236,7 @@
                         <?php endif; ?>
 
                         <?php if (!empty($EmployeeID)): ?>
-                            <input type="hidden" name="EmployeeID" value="<?= htmlspecialchars($EmployeeID) ?>">
+                            <input type="hidden" name="EmployeeID" value="<?= $EmployeeID ?>">
                         <?php else: ?>
                             <div class="bg-red-50 p-3 rounded-lg border border-red-200">
                                 <p class="text-sm text-red-600">No Employee ID found - please refresh the page</p>
@@ -257,13 +257,13 @@
                 <div class="flex justify-between items-center text-sm">
                     <span>Date Released:</span>
                     <span class="font-semibold">
-                        <?= !empty($assignedDate) ? htmlspecialchars($assignedDate) : 'N/A' ?>
+                        <?= !empty($assignedDate) ? ($assignedDate) : 'N/A' ?>
                     </span>
                 </div>
                 <div class="flex justify-between items-center text-sm">
                     <span>Department:</span>
                     <span class="font-semibold">
-                        <?= !empty($department) ? htmlspecialchars($department) : 'N/A' ?>
+                        <?= !empty($department) ? ($department) : 'N/A' ?>
                     </span>
                 </div>
             </div>
@@ -291,8 +291,8 @@
                     <?php else: ?>
                         <form action="/employee/signature" method="post" id="signatureForm"
                             class="flex flex-col gap-2 justify-center items-center w-full" enctype="multipart/form-data">
-                            <input type="hidden" name="EmployeeID" value="<?= htmlspecialchars($EmployeeID) ?>">
-                            <input type="hidden" name="name" value="<?= htmlspecialchars($name) ?>">
+                            <input type="hidden" name="EmployeeID" value="<?= ($EmployeeID) ?>">
+                            <input type="hidden" name="name" value="<?= ($name) ?>">
 
                             <!-- Remove the nested structure and simplify the label -->
                             <div
@@ -311,7 +311,7 @@
                         </form>
                     <?php endif; ?>
                 </div>
-                <p class="font-semibold border-t mt-8"><?= htmlspecialchars($name) ?></p>
+                <p class="font-semibold border-t mt-8"><?= ($name) ?></p>
                 <p class="text-sm text-gray-500">Employee Signature</p>
             </div>
 

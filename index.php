@@ -1,4 +1,8 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 // index.php
 define('BASE_PATH', __DIR__);
 define('APP_PATH', BASE_PATH . '/system');

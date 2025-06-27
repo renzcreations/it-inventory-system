@@ -11,7 +11,7 @@
     <!-- Title Section -->
     <div class="mb-8">
         <?php if (!empty($PCName)): ?>
-            <h1 class="text-3xl font-bold text-gray-900"><?= htmlspecialchars($PCName) ?> Returned Custody Details
+            <h1 class="text-3xl font-bold text-gray-900"><?= ($PCName) ?> Returned Custody Details
             </h1>
         <?php else: ?>
             <h1 class="text-3xl font-bold text-gray-900">(No Computer Name) Returned Custody Details
@@ -37,13 +37,13 @@
                         <?php foreach ($parts as $data): ?>
                             <tr class="hover:bg-gray-50 transition-colors duration-200">
                                 <td class="px-6 py-4 text-sm text-gray-900 font-medium uppercase">
-                                    <?= htmlspecialchars($data['uniqueID']) ?>
+                                    <?= ($data['uniqueID']) ?>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-600"><?= htmlspecialchars($data['PartType']) ?></td>
-                                <td class="px-6 py-4 text-sm text-gray-600"><?= htmlspecialchars($data['Brand']) ?></td>
-                                <td class="px-6 py-4 text-sm text-gray-600"><?= htmlspecialchars($data['Model']) ?></td>
+                                <td class="px-6 py-4 text-sm text-gray-600"><?= ($data['PartType']) ?></td>
+                                <td class="px-6 py-4 text-sm text-gray-600"><?= ($data['Brand']) ?></td>
+                                <td class="px-6 py-4 text-sm text-gray-600"><?= ($data['Model']) ?></td>
                                 <td class="px-6 py-4 text-sm text-gray-600">
-                                    <?= htmlspecialchars($data['SerialNumber'] ?? 'No Serial Number') ?>
+                                    <?= ($data['SerialNumber'] ?? 'No Serial Number') ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -63,7 +63,7 @@
                     <?php foreach ($accessories as $accessory): ?>
                         <span
                             class="px-3 py-1 bg-white rounded-full text-sm shadow-sm border border-amber-200 flex items-center gap-3">
-                            <?= htmlspecialchars($accessory['AccessoriesName'] . ' (' . $accessory['Brand'] . ') - ' . $accessory['AccessoriesPRNumber']) ?>
+                            <?= ($accessory['AccessoriesName'] . ' (' . $accessory['Brand'] . ') - ' . $accessory['AccessoriesPRNumber']) ?>
                         </span>
                     <?php endforeach; ?>
                 </div>

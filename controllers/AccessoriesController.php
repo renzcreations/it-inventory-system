@@ -172,11 +172,15 @@ class AccessoriesController extends Controller
         $Quantity = filter_var($_POST['Quantity'] ?? '', FILTER_VALIDATE_INT);
         $created_at = date('Y-m-d H:i:s');
 
-        if (empty($AccessoriesName) || empty($Quantity) || empty($Brand)) {
+        if (empty($AccessoriesName) || empty($Quantity)) {
             $_SESSION['warning'] = 'Invalid input data.';
             $_SESSION['accessories_old_input'] = $_POST;
             header("Location: /accessories");
             exit();
+        }
+
+        if ($Brand === '' || $Brand === null) {
+            $Brand = 'No Brand';
         }
 
         if ($PRNumber === '' || $PRNumber === null) {
@@ -224,78 +228,80 @@ class AccessoriesController extends Controller
         exit();
     }
 
-
     public function store()
     {
-        $PRNumbers = $_POST['PRNumber'] ?? [];
-        $AccessoriesIDs = $_POST['AccessoriesID'] ?? [];
-        $AccessoriesNames = $_POST['AccessoriesName'] ?? [];
-        $Brands = $_POST['Brand'] ?? [];
-        $created_at = date('Y-m-d H:i:s');
-
-        // Basic validation
-        if (empty($AccessoriesNames) || empty($Brands)) {
-            $_SESSION['warning'] = 'Invalid input data.';
-            $_SESSION['accessories_old_input'] = $_POST;
-            header("Location: /accessories");
-            exit();
-        }
-
         try {
             $this->db->query("BEGIN");
 
-            $count = count($AccessoriesNames);
-            for ($i = 0; $i < $count; $i++) {
-                $prNumber = $this->sanitize_input($PRNumbers[$i] ?? '', 'upper');
-                $accessoriesID = $AccessoriesIDs[$i] ?? null;
-                $accessoriesName = $this->sanitize_input($AccessoriesNames[$i] ?? '', 'ucwords');
-                $brand = $this->sanitize_input($Brands[$i] ?? '', 'ucwords');
+            // Fetch all rows from accessories_temp
+            $tempRows = $this->db->query("SELECT * FROM accessories_temp")->fetchAll(PDO::FETCH_ASSOC);
 
-                $temp = $this->db->query(
-                    "SELECT Qty FROM accessories_temp WHERE AccessoriesID = ?",
-                    [$accessoriesID]
-                );
-                $row = $temp->fetch(PDO::FETCH_ASSOC);
-                $quantity = $row ? $row['Qty'] : 0;
+            if (empty($tempRows)) {
+                $_SESSION['warning'] = 'No accessories found in the temporary list.';
+                header("Location: /accessories");
+                exit();
+            }
 
-                // Check if already exists in main table
-                $checkStmt = $this->db->query(
-                    "SELECT Qty FROM accessories WHERE AccessoriesName = ? AND Brand = ? AND PRNumber = ?",
-                    [$accessoriesName, $brand, $prNumber]
+            $created_at = date('Y-m-d H:i:s');
+
+            foreach ($tempRows as $row) {
+                $prNumber = $this->sanitize_input($row['PRNumber'] ?? '', 'upper');
+                $prNumber = $prNumber === '' ? null : $prNumber;
+
+                $accessoriesID = $row['AccessoriesID'] ?? null;
+
+                $accessoriesName = $this->sanitize_input($row['AccessoriesName'] ?? '', 'ucwords');
+
+                $brand = $this->sanitize_input($row['Brand'] ?? '', 'ucwords');
+                $brand = $brand === '' ? null : $brand;
+
+                $quantity = (int) ($row['Qty'] ?? 0);
+
+                // Check if record already exists with NULL-safe comparison
+                $existingStmt = $this->db->query(
+                    "SELECT Qty FROM accessories 
+                    WHERE AccessoriesName = ?
+                    AND ((Brand = ?) OR (Brand IS NULL AND ? IS NULL))
+                    AND ((PRNumber = ?) OR (PRNumber IS NULL AND ? IS NULL))",
+                    [$accessoriesName, $brand, $brand, $prNumber, $prNumber]
                 );
-                $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
+                $existing = $existingStmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($existing) {
                     $newQty = $existing['Qty'] + $quantity;
                     $this->db->query(
-                        "UPDATE accessories SET Qty = ?, CreatedAt = ? WHERE AccessoriesName = ? AND Brand = ? AND PRNumber = ?",
-                        [$newQty, $created_at, $accessoriesName, $brand, $prNumber]
+                        "UPDATE accessories 
+                        SET Qty = ?, CreatedAt = ?
+                        WHERE AccessoriesName = ?
+                        AND ((Brand = ?) OR (Brand IS NULL AND ? IS NULL))
+                        AND ((PRNumber = ?) OR (PRNumber IS NULL AND ? IS NULL))",
+                        [$newQty, $created_at, $accessoriesName, $brand, $brand, $prNumber, $prNumber]
                     );
                 } else {
                     $this->db->query(
-                        "INSERT INTO accessories (AccessoriesName, Brand, Qty, PRNumber, CreatedAt) VALUES (?, ?, ?, ?, ?)",
+                        "INSERT INTO accessories (AccessoriesName, Brand, Qty, PRNumber, CreatedAt) 
+                        VALUES (?, ?, ?, ?, ?)",
                         [$accessoriesName, $brand, $quantity, $prNumber, $created_at]
                     );
                 }
-
-                $this->db->query(
-                    "DELETE FROM accessories_temp WHERE AccessoriesID = ?",
-                    [$accessoriesID]
-                );
             }
+
+            // Truncate accessories_temp
+            $this->db->query("TRUNCATE TABLE accessories_temp");
 
             $this->db->query("COMMIT");
             unset($_SESSION['accessories_old_input']);
             $_SESSION['success'] = "Accessories have been successfully stored!";
-
         } catch (Exception $e) {
             $this->db->query("ROLLBACK");
             $_SESSION['error'] = 'Error: ' . $e->getMessage();
             error_log("Transaction failed: " . $e->getMessage());
         }
+
         header("Location: /accessories");
         exit();
     }
+
     public function assign()
     {
         $EmployeeID = $this->sanitize_input($_POST['EmployeeID'] ?? '');
@@ -316,30 +322,40 @@ class AccessoriesController extends Controller
             $warnings = [];
 
             // Loop through selected accessories
-            foreach ($Accessories as $accessoriesName => $PRNumber) {
-                // Skip if no PRNumber is selected
-                if (empty($PRNumber)) {
+            foreach ($Accessories as $accessoriesName => $identifier) {
+                // Skip if no identifier is provided
+                if (empty($identifier)) {
                     continue;
                 }
 
-                // Fetch AccessoriesID and Qty using AccessoriesName and PRNumber
+                // Try to fetch by PRNumber first
                 $stmt = $this->db->query(
                     "SELECT AccessoriesID, Qty FROM accessories WHERE AccessoriesName = ? AND PRNumber = ?",
-                    [$accessoriesName, $PRNumber]
+                    [$accessoriesName, $identifier]
                 );
                 $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
+                // If not found, try to fetch by AccessoriesID
                 if (!$result) {
-                    error_log("Accessory not found: $accessoriesName with PRNumber $PRNumber");
+                    $stmt = $this->db->query(
+                        "SELECT AccessoriesID, Qty, PRNumber FROM accessories WHERE AccessoriesID = ?",
+                        [$identifier]
+                    );
+                    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                }
+
+                if (!$result) {
+                    error_log("Accessory not found: $accessoriesName with identifier $identifier");
                     continue;
                 }
 
                 $AccessoriesID = $result['AccessoriesID'];
                 $qty = $result['Qty'];
+                $resolvedPRNumber = $result['PRNumber'] ?? null;
 
                 // Check stock availability
                 if ($qty <= 0) {
-                    error_log("No stock left for: $accessoriesName with PRNumber $PRNumber");
+                    error_log("No stock left for: $accessoriesName with ID $AccessoriesID");
                     continue;
                 }
 
@@ -351,21 +367,21 @@ class AccessoriesController extends Controller
                 $checkResult = $checkStmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($checkResult['count'] > 0) {
-                    $warnings[] = "Employee $EmployeeID already has accessory '$accessoriesName' with PRNumber $PRNumber assigned.";
-                    error_log("Warning: Employee $EmployeeID already has accessory '$accessoriesName' with PRNumber $PRNumber assigned.");
+                    $warnings[] = "Employee $EmployeeID already has accessory '$accessoriesName' assigned.";
+                    error_log("Warning: Employee $EmployeeID already has accessory '$accessoriesName' assigned.");
                     continue;
                 }
 
                 // Update stock: deduct quantity and increment assigned count
-                $updateStmt = $this->db->query(
+                $this->db->query(
                     "UPDATE accessories SET Qty = Qty - 1, AssignedCount = IFNULL(AssignedCount, 0) + 1, UpdatedAt = ? WHERE AccessoriesID = ?",
                     [$updated_at, $AccessoriesID]
                 );
 
                 // Record the assignment
-                $insertStmt = $this->db->query(
+                $this->db->query(
                     "INSERT INTO accessories_assignments (EmployeeID, AccessoriesID, PRNumber, created_at) VALUES (?, ?, ?, ?)",
-                    [$EmployeeID, $AccessoriesID, $PRNumber, $created_at]
+                    [$EmployeeID, $AccessoriesID, $resolvedPRNumber, $created_at]
                 );
             }
 
@@ -430,18 +446,14 @@ class AccessoriesController extends Controller
         $EmployeeID = $this->sanitize_input($_POST['EmployeeID'] ?? '');
         $date = date('Y-m-d H:i:s');
 
-        if (empty($PRNumber) || empty($Brand) || empty($AccessoriesName) || empty($Status)) {
+        if (empty($AccessoriesID) || empty($AccessoriesName) || empty($Status)) {
             $_SESSION['error'] = 'Missing required fields: PRNumber, Brand, or AccessoriesName.';
+            header("Location: /employee/custody/" . urlencode($EmployeeID));
             return;
         }
 
-        // $selectAccessories = $this->db->query("SELECT EmployeeID FROM accessories_assignments WHERE PRNumber =? AND AccessoriesID = ?", [$PRNumber, $AccessoriesID]);
-        // $result = $selectAccessories->fetch(PDO::FETCH_ASSOC);
-
-        // $EmployeeID = $result['EmployeeID'];
-
         try {
-            $update = $this->db->query("UPDATE accessories SET Qty = Qty + 1 WHERE PRNumber = ? AND AccessoriesName = ? AND Brand = ?", [$PRNumber, $AccessoriesName, $Brand]);
+            $update = $this->db->query("UPDATE accessories SET Qty = Qty + 1 WHERE AccessoriesID = ? AND AccessoriesName = ?", [$AccessoriesID, $AccessoriesName]);
 
             if ($update->rowCount() === 0) {
                 $_SESSION['warning'] = 'No matching accessory found to update stock.';
@@ -449,8 +461,8 @@ class AccessoriesController extends Controller
             }
 
             $updateAssignments = $this->db->query(
-                "UPDATE accessories_assignments SET Status = ?, updated_at = ? WHERE AccessoriesID = ? AND PRNumber = ?",
-                [$Status, $date, $AccessoriesID, $PRNumber]
+                "UPDATE accessories_assignments SET Status = ?, updated_at = ? WHERE AccessoriesID = ?",
+                [$Status, $date, $AccessoriesID]
             );
 
             if ($updateAssignments->rowCount() > 0) {
