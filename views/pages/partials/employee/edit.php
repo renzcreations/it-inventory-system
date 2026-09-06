@@ -44,6 +44,15 @@
                             class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
                     </div>
 
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-2"><label class="text-sm font-medium text-gray-600">Job title</label><select name="JobTitle" class="w-full px-4 py-2.5 border border-gray-200 rounded-lg">
+                            <option value="">No job title</option><?php foreach ($jobTitles ?? [] as $option): ?><option value="<?= htmlspecialchars($option['name'], ENT_QUOTES, 'UTF-8') ?>" <?= ($data['JobTitle'] ?? '') === $option['name'] ? 'selected' : '' ?>><?= htmlspecialchars($option['name'], ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
+                        </select></div>
+                        <div class="space-y-2"><label class="text-sm font-medium text-gray-600">Work arrangement</label><select name="WorkStatus" class="w-full px-4 py-2.5 border border-gray-200 rounded-lg">
+                            <?php foreach ($workArrangements ?? [] as $option): $value = strtoupper($option['name']); ?><option value="<?= htmlspecialchars($value, ENT_QUOTES, 'UTF-8') ?>" <?= ($data['WorkStatus'] ?? '') === $value ? 'selected' : '' ?>><?= htmlspecialchars($option['name'], ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
+                        </select></div>
+                    </div>
+
                     <!-- Department Section -->
                     <div class="space-y-4">
                         <p class="text-sm text-gray-600 italic flex items-center gap-2">
@@ -57,13 +66,14 @@
                         </p>
 
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                            <input type="text" name="inputDepartment" id="Department" placeholder="Department name" required
+                            <input type="text" name="inputDepartment" id="Department" placeholder="Department name"
                                 value="<?= htmlspecialchars($_SESSION['old_input']['Department'] ?? $data['Department']) ?>"
                                 class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
 
                             <select name="selectDepartment"
                                 class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
                                 <option value="" class="text-gray-400">Select existing department</option>
+                                <?php foreach ($departmentsCatalog ?? [] as $option): ?><option value="<?= htmlspecialchars($option['name'], ENT_QUOTES, 'UTF-8') ?>" <?= $data['Department'] === $option['name'] ? 'selected' : '' ?>><?= htmlspecialchars($option['name'], ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
                                 <?php if (!empty($dept)): ?>
                                     <?php foreach ($dept as $filter): ?>
                                         <option value="<?= htmlspecialchars($filter['Department']) ?>"

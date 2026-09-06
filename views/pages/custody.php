@@ -297,7 +297,7 @@
                             <!-- Remove the nested structure and simplify the label -->
                             <div
                                 class="w-full flex flex-col items-center justify-center border-2 border-dashed border-gray-400 rounded-lg p-2 hover:border-amber-500 transition-colors">
-                                <img src="https://res.cloudinary.com/dfgrpa88v/image/upload/v1743643743/dlgarvgpfnmqrlp4arhn.png"
+                                <img src="/src/images/avatar.svg"
                                     class="previewImage max-h-20 object-contain mb-1 opacity-80 hover:opacity-100 transition"
                                     alt="Click to upload">
                                 <span class="text-xs text-gray-500 px-2">Click to upload signature</span>

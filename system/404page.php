@@ -10,7 +10,6 @@
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
   <!-- Font Awesome Icons -->
-  <script src="https://kit.fontawesome.com/e81967d7b9.js"></script>
   <title>404 - Page Not Found</title>
 </head>
 

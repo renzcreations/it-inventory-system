@@ -31,9 +31,7 @@
                         <select x-model="currentFilters.PartStatus"
                             class="w-full px-4 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-amber-500">
                             <option value="">All Status</option>
-                            <option value="Available">Available</option>
-                            <option value="In Use">In Use</option>
-                            <option value="Defective">Defective</option>
+                            <?php foreach ($partStatuses ?? [] as $status): ?><option value="<?= htmlspecialchars($status['name'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($status['name'], ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
                         </select>
 
                         <select x-model="currentFilters.PartType"
@@ -131,7 +129,7 @@
                                         <option disabled selected
                                             x-text="item.PartStatus ? item.PartStatus : 'Available'">
                                         </option>
-                                        <option value="Defective">Defective</option>
+                                        <?php foreach ($partStatuses ?? [] as $status): if (strtolower($status['code']) === 'defective'): ?><option value="<?= htmlspecialchars($status['name'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($status['name'], ENT_QUOTES, 'UTF-8') ?></option><?php endif; endforeach; ?>
                                     </select>
                                 </form>
                             </td>
@@ -190,21 +188,7 @@
                     required autofocus>
                     <option class="bg-gray-400" disabled <?= empty($_SESSION['old_input']['PartType']) ? 'selected' : '' ?>>
                         -- Select Part Type --</option>
-                    <option value="Processor" <?= ($_SESSION['old_input']['PartType'] ?? '') === 'Processor' ? 'selected' : '' ?>>Processor</option>
-                    <option value="Motherboard" <?= ($_SESSION['old_input']['PartType'] ?? '') === 'Motherboard' ? 'selected' : '' ?>>Motherboard</option>
-                    <option value="GPU" <?= ($_SESSION['old_input']['PartType'] ?? '') === 'GPU' ? 'selected' : '' ?>>GPU
-                    </option>
-                    <option value="RAM" <?= ($_SESSION['old_input']['PartType'] ?? '') === 'RAM' ? 'selected' : '' ?>>RAM
-                    </option>
-                    <option value="HDD" <?= ($_SESSION['old_input']['PartType'] ?? '') === 'HDD' ? 'selected' : '' ?>>HDD
-                    </option>
-                    <option value="SSD" <?= ($_SESSION['old_input']['PartType'] ?? '') === 'SSD' ? 'selected' : '' ?>>SSD
-                    </option>
-                    <option value="Monitor" <?= ($_SESSION['old_input']['PartType'] ?? '') === 'Monitor' ? 'selected' : '' ?>>
-                        Monitor</option>
-                    <option value="Pen Display" <?= ($_SESSION['old_input']['PartType'] ?? '') === 'Pen Display' ? 'selected' : '' ?>>Pen Display</option>
-                    <option value="Pen Tablet" <?= ($_SESSION['old_input']['PartType'] ?? '') === 'Pen Tablet' ? 'selected' : '' ?>>Pen Tablet</option>
-                    <option value="Power Supply" <?= ($_SESSION['old_input']['PartType'] ?? '') === 'Power Supply' ? 'selected' : '' ?>>Power Supply</option>
+                    <?php foreach ($partCategories ?? [] as $option): $name = $option['name']; ?><option value="<?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?>" <?= ($_SESSION['old_input']['PartType'] ?? '') === $name ? 'selected' : '' ?>><?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
                 </select>
 
                 <input type="text" name="Brand" id="Brand" placeholder="Brand"

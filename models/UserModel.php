@@ -7,6 +7,31 @@ use System\Core\Model;
 
 class UserModel extends Model
 {
+    public function recentFailedLoginCount(string $identity, string $ipAddress, int $minutes): int
+    {
+        $minutes = max(1, min(1440, $minutes));
+        return (int) $this->scalar(
+            "SELECT COUNT(*) FROM login_attempts WHERE was_successful = 0 "
+            . "AND attempted_at >= DATE_SUB(NOW(), INTERVAL {$minutes} MINUTE) "
+            . 'AND (identity = ? OR ip_address = ?)',
+            [$identity, $ipAddress]
+        );
+    }
+
+    public function recordLoginAttempt(string $identity, string $ipAddress, bool $successful, ?int $organizationId = null): void
+    {
+        $this->execute(
+            'INSERT INTO login_attempts (organization_id, identity, ip_address, was_successful) VALUES (?, ?, ?, ?)',
+            [$organizationId, $identity, $ipAddress, (int) $successful]
+        );
+        if ($successful) {
+            $this->execute(
+                'DELETE FROM login_attempts WHERE was_successful = 0 AND identity = ? AND ip_address = ?',
+                [$identity, $ipAddress]
+            );
+        }
+    }
+
     public function findByUsername(string $username): ?array
     {
         return $this->first('SELECT * FROM users WHERE username = ?', [$username]);
@@ -19,7 +44,10 @@ class UserModel extends Model
 
     public function markLoggedIn(string $username, string $timestamp): void
     {
-        $this->execute('UPDATE users SET logged_date = ? WHERE username = ?', [$timestamp, $username]);
+        $this->execute(
+            'UPDATE users SET logged_date = ?, last_login_ip = ? WHERE username = ?',
+            [$timestamp, substr((string) ($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45), $username]
+        );
     }
 
     public function invitationByCode(string $code): ?array
@@ -49,10 +77,15 @@ class UserModel extends Model
     {
         return $this->transaction(function () use ($user): int {
             $this->execute(
-                'INSERT INTO users (name, email, email_code, username, password) VALUES (?, ?, ?, ?, ?)',
-                [$user['name'], $user['email'], $user['email_code'], $user['username'], $user['password']]
+                'INSERT INTO users (organization_id, name, email, email_code, username, password) VALUES (?, ?, ?, ?, ?, ?)',
+                [$user['organization_id'], $user['name'], $user['email'], $user['email_code'], $user['username'], $user['password']]
             );
             $id = $this->lastInsertId();
+            $this->execute(
+                'INSERT INTO user_roles (organization_id, user_id, role_id) '
+                . 'SELECT ?, ?, id FROM roles WHERE organization_id = ? AND slug = ? AND is_active = 1 LIMIT 1',
+                [$user['organization_id'], $id, $user['organization_id'], 'support']
+            );
             $this->execute('DELETE FROM register WHERE email_code = ?', [$user['email_code']]);
             return $id;
         });
@@ -61,32 +94,34 @@ class UserModel extends Model
     public function recentEmployees(int $limit = 5): array
     {
         $limit = max(1, min($limit, 100));
-        return $this->all("SELECT * FROM employees ORDER BY signature_upload_date DESC LIMIT {$limit}");
+        return $this->all("SELECT * FROM employees WHERE organization_id = ? ORDER BY signature_upload_date DESC LIMIT {$limit}", [$this->organizationId()]);
     }
 
     public function accessoryTotals(): array
     {
         return $this->all(
             'SELECT AccessoriesName, SUM(Qty) AS totalQty, SUM(AssignedCount) AS totalAssigned, '
-            . 'SUM(DefectiveCount) AS totalDefective FROM accessories GROUP BY AccessoriesName'
+            . 'SUM(DefectiveCount) AS totalDefective FROM accessories WHERE organization_id = ? GROUP BY AccessoriesName',
+            [$this->organizationId()]
         );
     }
 
     public function partStatusCounts(): array
     {
-        return $this->all('SELECT Status, COUNT(*) AS count FROM parts GROUP BY Status');
+        return $this->all('SELECT Status, COUNT(*) AS count FROM parts WHERE organization_id = ? GROUP BY Status', [$this->organizationId()]);
     }
 
     public function signatureCounts(): array
     {
         return $this->all(
-            "SELECT Signature, COUNT(*) AS count FROM employees WHERE Status = 'Active' GROUP BY Signature"
+            "SELECT Signature, COUNT(*) AS count FROM employees WHERE organization_id = ? AND LOWER(Status) = 'active' GROUP BY Signature",
+            [$this->organizationId()]
         );
     }
 
     public function companyDetails(): array
     {
-        return $this->all('SELECT * FROM company_details');
+        return $this->all('SELECT * FROM company_details WHERE organization_id = ?', [$this->organizationId()]);
     }
 
     public function updateProfile(string $currentUsername, array $attributes, string $updatedAt): void
@@ -160,22 +195,75 @@ class UserModel extends Model
         $identifier = $this->safeIdentifier($table);
         $offset = max(0, $offset);
         $limit = max(1, min($limit, 5000));
+        if ($this->tableHasOrganizationColumn($identifier)) {
+            return $this->all(
+                "SELECT * FROM `{$identifier}` WHERE organization_id = ? LIMIT {$offset}, {$limit}",
+                [$this->organizationId()]
+            );
+        }
         return $this->all("SELECT * FROM `{$identifier}` LIMIT {$offset}, {$limit}");
+    }
+
+    public function databaseDump(string $generatedBy, string $generatedAt): string
+    {
+        $dump = "-- IT Inventory System Database Backup\n";
+        $dump .= "-- Generated: {$generatedAt}\n";
+        $dump .= "-- Generated by: {$generatedBy}\n\n";
+        $dump .= "SET FOREIGN_KEY_CHECKS = 0;\n\n";
+
+        foreach ($this->tableNames() as $table) {
+            $identifier = $this->safeIdentifier($table);
+            $dump .= "--\n-- Structure for table `{$identifier}`\n--\n";
+            $dump .= "DROP TABLE IF EXISTS `{$identifier}`;\n";
+            $dump .= $this->createTableSql($identifier) . ";\n\n";
+
+            $offset = 0;
+            $limit = 1000;
+            do {
+                $rows = $this->tableRows($identifier, $offset, $limit);
+                if ($rows !== [] && $offset === 0) {
+                    $dump .= "--\n-- Data for table `{$identifier}`\n--\n";
+                }
+                foreach ($rows as $row) {
+                    $columns = array_map(
+                        fn(string $column): string => '`' . str_replace('`', '``', $column) . '`',
+                        array_keys($row)
+                    );
+                    $values = array_map(
+                        fn(mixed $value): string => $value === null
+                            ? 'NULL'
+                            : "X'" . bin2hex((string) $value) . "'",
+                        array_values($row)
+                    );
+                    $dump .= "INSERT INTO `{$identifier}` (" . implode(', ', $columns) . ') VALUES ('
+                        . implode(', ', $values) . ");\n";
+                }
+                $offset += $limit;
+            } while (count($rows) === $limit);
+            $dump .= "\n";
+        }
+
+        return $dump . "SET FOREIGN_KEY_CHECKS = 1;\n";
     }
 
     public function administrator(): ?array
     {
-        return $this->first("SELECT * FROM users WHERE type = 'Administrator' LIMIT 1");
+        return $this->first("SELECT * FROM users WHERE organization_id = ? AND type = 'Administrator' LIMIT 1", [$this->organizationId()]);
     }
 
     public function allUsers(): array
     {
-        return $this->all('SELECT * FROM users ORDER BY type ASC');
+        return $this->all(
+            'SELECT u.*, r.id AS role_id, r.name AS role_name FROM users u '
+            . 'LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.organization_id = u.organization_id '
+            . 'LEFT JOIN roles r ON r.id = ur.role_id WHERE u.organization_id = ? ORDER BY u.name',
+            [$this->organizationId()]
+        );
     }
 
     public function allInvitations(): array
     {
-        return $this->all('SELECT * FROM register ORDER BY created_at ASC');
+        return $this->all('SELECT * FROM register WHERE organization_id = ? ORDER BY created_at ASC', [$this->organizationId()]);
     }
 
     public function refreshInvitation(string $email, string $code, string $timestamp): int
@@ -202,8 +290,8 @@ class UserModel extends Model
     public function createInvitation(string $email, string $code, string $createdAt): int
     {
         $this->execute(
-            'INSERT INTO register (email_code, email, created_at) VALUES (?, ?, ?)',
-            [$code, $email, $createdAt]
+            'INSERT INTO register (organization_id, email_code, email, created_at) VALUES (?, ?, ?, ?)',
+            [$this->organizationId(), $code, $email, $createdAt]
         );
         return $this->lastInsertId();
     }
@@ -214,5 +302,14 @@ class UserModel extends Model
             throw new \InvalidArgumentException('Invalid SQL identifier.');
         }
         return $identifier;
+    }
+
+    private function tableHasOrganizationColumn(string $table): bool
+    {
+        return (bool) $this->scalar(
+            'SELECT EXISTS(SELECT 1 FROM information_schema.COLUMNS '
+            . 'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?)',
+            [$table, 'organization_id']
+        );
     }
 }

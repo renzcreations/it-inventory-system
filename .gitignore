@@ -2,4 +2,12 @@ vendor/
 backups/
 node_modules/
 Signature/
+!Signature/
+Signature/*
+!Signature/.htaccess
 .env
+config/.secrets
+config/secrets.php
+it-inventory-secrets.php
+storage/private/
+storage/logs/*.log

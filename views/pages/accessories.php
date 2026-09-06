@@ -243,20 +243,7 @@
                     required autofocus>
                     <option class="bg-gray-400" disabled <?= empty($_SESSION['accessories_old_input']['AccessoriesName']) ? 'selected' : '' ?>>
                         -- Select Accessories Type --</option>
-                    <option value="Keyboard" <?= ($_SESSION['accessories_old_input']['AccessoriesName'] ?? '') === 'Keyboard' ? 'selected' : '' ?>>Keyboard</option>
-                    <option value="Mouse" <?= ($_SESSION['accessories_old_input']['AccessoriesName'] ?? '') === 'Mouse' ? 'selected' : '' ?>>Mouse</option>
-                    <option value="Webcam" <?= ($_SESSION['accessories_old_input']['AccessoriesName'] ?? '') === 'Webcam' ? 'selected' : '' ?>>
-                        Webcam
-                    </option>
-                    <option value="Headset" <?= ($_SESSION['accessories_old_input']['AccessoriesName'] ?? '') === 'Headset' ? 'selected' : '' ?>>
-                        Headset
-                    </option>
-                    <option value="Table" <?= ($_SESSION['accessories_old_input']['AccessoriesName'] ?? '') === 'Table' ? 'selected' : '' ?>>
-                        Table
-                    </option>
-                    <option value="Chair" <?= ($_SESSION['accessories_old_input']['AccessoriesName'] ?? '') === 'Chair' ? 'selected' : '' ?>>
-                        Chair
-                    </option>
+                    <?php foreach ($accessoryCategories ?? [] as $option): $name = $option['name']; ?><option value="<?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?>" <?= ($_SESSION['accessories_old_input']['AccessoriesName'] ?? '') === $name ? 'selected' : '' ?>><?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
                 </select>
                 <input type="text" name="Brand" id="Brand" placeholder="Brand"
                     class="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-amber-500"

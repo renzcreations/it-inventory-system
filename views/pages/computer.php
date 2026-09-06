@@ -28,9 +28,7 @@
                         <select x-model="currentFilters.Status"
                             class="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-amber-500">
                             <option value="">Filter By Status</option>
-                            <option value="Unassigned">Available</option>
-                            <option value="Assigned">Assigned</option>
-                            <option value="Returned">Returned</option>
+                            <?php foreach ($computerStatuses ?? [] as $status): ?><option value="<?= htmlspecialchars($status['name'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($status['name'], ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
                         </select>
                         <select x-model="itemsPerPage" @change="handleItemsPerPageChange"
                             class="w-full px-4 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-amber-500">
@@ -84,7 +82,7 @@
                                             class="status px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-amber-500">
                                             <option x-text="pc.Status ==='Unassigned' ? 'Available': pc.Status">
                                             </option>
-                                            <option value="Returned">Returned</option>
+                                            <?php foreach ($computerStatuses ?? [] as $status): if (strtolower($status['code']) === 'returned'): ?><option value="<?= htmlspecialchars($status['name'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($status['name'], ENT_QUOTES, 'UTF-8') ?></option><?php endif; endforeach; ?>
                                         </select>
                                     </form>
                                 </template>

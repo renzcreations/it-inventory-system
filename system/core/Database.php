@@ -5,10 +5,13 @@ class Database {
     protected $connection;
 
     public function __construct() {
-        $dsn = "mysql:host={$_ENV['DB_HOST']};dbname={$_ENV['DB_NAME']};charset=utf8";
+        $port = $_ENV['DB_PORT'] ?? '3306';
+        $dsn = "mysql:host={$_ENV['DB_HOST']};port={$port};dbname={$_ENV['DB_NAME']};charset=utf8mb4";
         $options = [
             \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
-            \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC
+            \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+            \PDO::ATTR_EMULATE_PREPARES => false,
+            \PDO::ATTR_STRINGIFY_FETCHES => false,
         ];
 
         try {
@@ -19,7 +22,9 @@ class Database {
                 $options
             );
         } catch (\PDOException $e) {
-            die("Database connection failed: " . $e->getMessage());
+            error_log('Database connection failed: ' . $e->getMessage());
+            http_response_code(503);
+            exit('The service is temporarily unavailable.');
         }
     }
 

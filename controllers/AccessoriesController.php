@@ -3,6 +3,7 @@
 namespace Controllers;
 
 use Exception;
+use Models\CatalogModel;
 use Models\AccessoriesModel;
 use System\Core\Controller;
 
@@ -64,6 +65,7 @@ class AccessoriesController extends Controller
         }
 
         $returnedAccessories = $this->accessories->returnedAccessories();
+        $catalogs = new CatalogModel();
         $this->view('pages/accessories', [
             'title' => 'Accessories',
             'accessories' => $allAccessories,
@@ -75,6 +77,7 @@ class AccessoriesController extends Controller
             'returnAccessoriesNameFilter' => $this->accessories->returnedAccessoryNames(),
             'returnBrandAccessory' => $this->groupBrands($returnedAccessories),
             'returnAccessoriesStmt' => $returnedAccessories,
+            'accessoryCategories' => $catalogs->valuesByGroup('accessory_categories'),
         ]);
     }
 

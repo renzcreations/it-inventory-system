@@ -105,9 +105,7 @@ CREATE TABLE `parts` (
     `SerialNumber` VARCHAR(255) NOT NULL,
     `Status` ENUM('Available', 'In Use', 'Defective') NOT NULL DEFAULT 'Available',
     `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    -- This remains text because PartsController currently submits both standard
-    -- timestamps and the legacy Y-m-d_H:i:s.u format to this column.
-    `updated_at` VARCHAR(32) DEFAULT NULL,
+    `updated_at` DATETIME(6) DEFAULT NULL,
     PRIMARY KEY (`PartID`),
     UNIQUE KEY `uq_parts_unique_id` (`uniqueID`),
     UNIQUE KEY `uq_parts_serial_number` (`SerialNumber`),

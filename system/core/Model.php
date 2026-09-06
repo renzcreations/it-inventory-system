@@ -57,4 +57,10 @@ abstract class Model
     {
         return (int) $this->database->lastInsertId();
     }
+
+    protected function organizationId(): int
+    {
+        $organizationId = (int) ($_SESSION['organization_id'] ?? 1);
+        return max(1, $organizationId);
+    }
 }

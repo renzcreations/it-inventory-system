@@ -157,7 +157,7 @@
                     <?php if ($user['signature'] !== null): ?>
                         <img src="<?= $user['signature'] ?>" class="previewImage w-48 h-32 object-contain mx-auto">
                     <?php else: ?>
-                        <img src="https://res.cloudinary.com/dfgrpa88v/image/upload/v1743643743/dlgarvgpfnmqrlp4arhn.png"
+                        <img src="/src/images/avatar.svg"
                             class="previewImage w-48 h-32 object-contain mx-auto">
                     <?php endif; ?>
                     <p class="text-sm text-gray-500 mt-4">Click to upload new signature</p>
@@ -182,7 +182,7 @@
         const fileInput = document.getElementById("signature");
         const previewImage = document.querySelector(".previewImage");
         const uploadContainer = document.querySelector(".signature-upload");
-        const defaultImage = "https://res.cloudinary.com/dfgrpa88v/image/upload/v1743643743/dlgarvgpfnmqrlp4arhn.png";
+        const defaultImage = "/src/images/avatar.svg";
 
         if (!fileInput || !previewImage) return;
 

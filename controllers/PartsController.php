@@ -2,6 +2,7 @@
 namespace Controllers;
 
 use Exception;
+use Models\CatalogModel;
 use Models\PartsModel;
 use System\Core\Controller;
 
@@ -44,6 +45,7 @@ class PartsController extends Controller
         $excludedTypes = $this->getExcludedPartTypes();
         $parts_available = $this->getAvailableParts($excludedTypes, $tempPartIDs);
 
+        $catalogs = new CatalogModel();
         $this->view('pages/parts', [
             'title' => 'Parts',
             'parts_data' => $parts_data,
@@ -53,7 +55,9 @@ class PartsController extends Controller
             'tempPart' => $tempPart,
             'tempPartIDs' => $tempPartIDs,
             'temp_part' => $temp_part,
-            'tempPC' => $tempPC
+            'tempPC' => $tempPC,
+            'partCategories' => $catalogs->valuesByGroup('part_categories'),
+            'partStatuses' => $catalogs->valuesByGroup('part_statuses'),
         ]);
     }
 
@@ -258,7 +262,7 @@ class PartsController extends Controller
         $id = $this->sanitize_input($_POST['id'] ?? '');
         $name = $this->sanitize_input($_POST['name'] ?? '');
         $status = $this->sanitize_input($_POST['Status'] ?? '');
-        $updated_at = date('Y-m-d_H:i:s.u');
+        $updated_at = date('Y-m-d H:i:s.u');
 
         try {
             if ($this->parts->updateStatus((int) $id, $status, $updated_at) >= 0) {

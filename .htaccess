@@ -1,11 +1,24 @@
 RewriteEngine On
 
+Options -Indexes
+
+# Never serve application internals, secrets, SQL dumps, or dependency metadata.
+RewriteRule (^|/)\. - [F,L,NC]
+RewriteRule ^(?:config|controllers|models|router|system|vendor|node_modules|backups|storage)(?:/|$) - [F,L,NC]
+RewriteRule \.(?:env|ini|log|sql|lock|json|md|yml|yaml)$ - [F,L,NC]
+RewriteRule ^(?:composer|package)(?:\.[A-Za-z0-9._-]+)?$ - [F,L,NC]
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    Header always set Cross-Origin-Opener-Policy "same-origin"
+</IfModule>
+
 # Force HTTPS
 RewriteCond %{HTTPS} off
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-
-# Block access to .env file
-RewriteRule ^\.env$ /notfound.php [R=404,L]
 
 # Handle all other routes through index.php
 RewriteCond %{REQUEST_FILENAME} !-f

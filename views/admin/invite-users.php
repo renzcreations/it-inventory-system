@@ -2,7 +2,7 @@
     <!-- Invite Form Section -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6" data-aos="fade-right" data-aos-anchor-placement="top-right" data-aos-duration="2000">
         <div class="text-center mb-8">
-            <img src="https://res.cloudinary.com/dfgrpa88v/image/upload/v1743643743/dlgarvgpfnmqrlp4arhn.png"
+            <img src="/src/images/avatar.svg"
                 class="w-32 mx-auto mb-6" alt="logo" loading="eager">
             <h2 class="text-2xl font-bold text-gray-900 mb-4">Invite New User</h2>
         </div>
@@ -39,21 +39,10 @@
                             <p class="text-sm text-gray-600 break-all"><?= ($data['email']) ?></p>
                         </div>
 
-                        <form action="/users/update" method="post" class="w-full md:w-auto">
-                            <input type="hidden" name="username" value="<?= ($data['username']) ?>">
-
-                            <select name="type" id="type"
-                                class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                                onchange="this.form.submit()">
-                                <option value="<?= ($data['type']) ?>" selected>
-                                    <?= ($data['type']) ?>
-                                </option>
-                                <option
-                                    value="<?= ($data['type'] === 'Administrator' ? 'Support' : 'Administrator') ?>">
-                                    <?= ($data['type'] === 'Administrator' ? 'Support' : 'Administrator') ?>
-                                </option>
-                            </select>
-                        </form>
+                        <div class="w-full md:w-auto text-sm text-gray-600">
+                            Role: <strong><?= htmlspecialchars($data['role_name'] ?? 'Unassigned', ENT_QUOTES, 'UTF-8') ?></strong>
+                            <a href="/settings?tab=users" class="ml-2 text-teal-700 underline">Manage</a>
+                        </div>
                     </div>
                 <?php endforeach; ?>
             <?php else: ?>

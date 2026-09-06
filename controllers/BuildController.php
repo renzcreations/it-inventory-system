@@ -3,6 +3,7 @@ namespace Controllers;
 
 use Exception;
 use Models\BuildModel;
+use Models\CatalogModel;
 use System\Core\Controller;
 
 class BuildController extends Controller
@@ -28,7 +29,8 @@ class BuildController extends Controller
             'tempPart' => $tempPart,
             'parts' => $parts,
             'partTypes' => $partTypes,
-            'type' => $type
+            'type' => $type,
+            'computerCategories' => (new CatalogModel())->valuesByGroup('computer_categories'),
         ]);
     }
 
@@ -63,12 +65,14 @@ class BuildController extends Controller
 
     public function check()
     {
+        header('Content-Type: application/json; charset=utf-8');
+
         try {
             if (!isset($_GET['name'])) {
                 throw new Exception('Missing name parameter');
             }
 
-            $name = $_GET['name'];
+            $name = $this->sanitize_input($_GET['name'], 'upper');
 
             echo json_encode([
                 'available' => !$this->builds->computerNameExists($name),
@@ -87,6 +91,7 @@ class BuildController extends Controller
     public function store()
     {
         $PCName = $this->sanitize_input($_POST['PCName'] ?? '', 'upper');
+        $category = $this->sanitize_input($_POST['Category'] ?? 'Desktop', 'ucwords');
         $created_at = $updated_at = date('Y-m-d H:i:s.u');
 
         if (empty($PCName)) {
@@ -112,7 +117,7 @@ class BuildController extends Controller
 
         try {
             $partIds = array_map('intval', $_POST['PartID']);
-            $this->builds->buildComputer($PCName, $partIds, $created_at);
+            $this->builds->buildComputer($PCName, $category, $partIds, $created_at);
 
             $_SESSION['success'] = htmlspecialchars($PCName, ENT_QUOTES, 'UTF-8') . ' created successfully!';
             header("Location: /build");

@@ -4,11 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "npx @tailwindcss/cli -i ./src/css/style.css -o ./src/css/output.css",
     "dev": "concurrently --kill-others-on-fail \"php -S localhost:8000\" \"npm run browsersync\" \"npx @tailwindcss/cli -i ./src/css/style.css -o ./src/css/output.css --watch\"",
     "browsersync": "browser-sync start --proxy localhost:8000 --files \"views/**/*.php,src/css/output.css\" --no-notify"
   },
   "devDependencies": {
-    "browser-sync": "^1.9.2",
+    "browser-sync": "^3.0.4",
     "concurrently": "^9.0.1"
   },
   "keywords": [],

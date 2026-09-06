@@ -50,12 +50,15 @@
                     <select name="WorkStatus"
                         class="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-amber-500">
                         <option value="">Work Status</option>
-                        <option value="WFH">WFH</option>
-                        <option value="TEMP WFH">TEMP WFH</option>
-                        <option value="ON-SITE">ON-SITE</option>
+                        <?php foreach ($workArrangements ?? [] as $option): ?><option value="<?= htmlspecialchars(strtoupper($option['name']), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($option['name'], ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
                     </select>
 
-                    <div class="space-y-4">
+                    <select name="JobTitle" class="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-amber-500">
+                        <option value="">Job title (optional)</option>
+                        <?php foreach ($jobTitles ?? [] as $option): ?><option value="<?= htmlspecialchars($option['name'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($option['name'], ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
+                    </select>
+
+                    <div class="space-y-4">
                         <h3 class="text-sm font-medium text-gray-600">Department Information</h3>
                         <div class="grid md:grid-cols-2 gap-4">
                             <input type="text" name="inputDepartment" id="Department" placeholder="Department Name"
@@ -64,7 +67,8 @@
 
                             <select name="selectDepartment"
                                 class="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-amber-500">
-                                <option value="">Select Existing Department</option>
+                                <option value="">Select Existing Department</option>
+                                <?php foreach ($departmentsCatalog ?? [] as $option): ?><option value="<?= htmlspecialchars($option['name'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($option['name'], ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
                                 <?php if (!empty($deptFilter)): ?>
                                     <?php foreach ($deptFilter as $data): ?>
                                         <option value="<?= $data['Department'] ?>"><?= $data['Department'] ?></option>
@@ -103,8 +107,7 @@
                         <select x-model="statusFilter"
                             class="w-full px-4 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-amber-500">
                             <option value="">All Statuses</option>
-                            <option value="Active">Active</option>
-                            <option value="Resigned">Resigned</option>
+                            <?php foreach ($employeeStatuses ?? [] as $option): ?><option value="<?= htmlspecialchars($option['name'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($option['name'], ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
                         </select>
 
                         <select x-model="signStatus"
@@ -188,7 +191,7 @@
                                         class="status px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-amber-500"
                                         :disabled="['Resigned', 'Terminated'].includes(employee.Status)">
                                         <option readonly selected x-text="employee.Status"></option>
-                                        <option value="Resigned">Resigned</option>
+                                        <?php foreach ($employeeStatuses ?? [] as $status): if (strtolower($status['code']) === 'resigned'): ?><option value="<?= htmlspecialchars($status['name'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($status['name'], ENT_QUOTES, 'UTF-8') ?></option><?php endif; endforeach; ?>
                                     </select>
                                 </form>
                             </td>

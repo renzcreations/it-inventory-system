@@ -29,12 +29,6 @@
                     placeholder="••••••••">
             </div>
 
-            <div class="flex items-center gap-3">
-                <input type="checkbox" name="rememberMe" id="rememberMe"
-                    class="w-4 h-4 border border-gray-300 rounded checked:bg-amber-500 focus:ring-amber-500 transition-colors duration-200">
-                <label for="rememberMe" class="text-sm text-gray-600">Remember this device</label>
-            </div>
-
             <button type="submit" name="login"
                 class="w-full bg-amber-500 text-gray-900 py-2.5 px-6 rounded-lg hover:bg-amber-600 transition-colors duration-200 font-medium shadow-sm hover:shadow-md">
                 Sign In

@@ -9,38 +9,38 @@ class EmployeeModel extends Model
     public function allEmployees(): array
     {
         return $this->all(
-            'SELECT *, Status AS WorkStatus, (Signature IS NOT NULL) AS HasSignature '
-            . 'FROM employees ORDER BY Status ASC'
+            'SELECT *, (Signature IS NOT NULL) AS HasSignature FROM employees WHERE organization_id = ? ORDER BY Status ASC',
+            [$this->organizationId()]
         );
     }
 
     public function departments(): array
     {
-        return $this->all('SELECT Department FROM employees GROUP BY Department');
+        return $this->all('SELECT Department FROM employees WHERE organization_id = ? GROUP BY Department', [$this->organizationId()]);
     }
 
     public function employeeIdExists(string $employeeId): bool
     {
         return (bool) $this->scalar(
-            'SELECT EXISTS(SELECT 1 FROM employees WHERE EmployeeID = ?)',
-            [$employeeId]
+            'SELECT EXISTS(SELECT 1 FROM employees WHERE organization_id = ? AND EmployeeID = ?)',
+            [$this->organizationId(), $employeeId]
         );
     }
 
     public function createEmployee(array $employee): int
     {
-        $columns = ['EmployeeID', 'FirstName', 'LastName', 'Email', 'Department', 'created_at'];
+        $columns = ['organization_id', 'EmployeeID', 'FirstName', 'LastName', 'Email', 'Department', 'JobTitle', 'created_at'];
         $values = [
-            $employee['EmployeeID'], $employee['FirstName'], $employee['LastName'],
-            $employee['Email'], $employee['Department'], $employee['created_at'],
+            $this->organizationId(), $employee['EmployeeID'], $employee['FirstName'], $employee['LastName'],
+            $employee['Email'], $employee['Department'], $employee['JobTitle'] ?? null, $employee['created_at'],
         ];
 
         if (isset($employee['WorkStatus'])) {
-            array_splice($columns, 5, 0, ['WorkStatus']);
-            array_splice($values, 5, 0, [$employee['WorkStatus']]);
+            array_splice($columns, 7, 0, ['WorkStatus']);
+            array_splice($values, 7, 0, [$employee['WorkStatus']]);
         } elseif (isset($employee['Status'])) {
-            array_splice($columns, 5, 0, ['Status']);
-            array_splice($values, 5, 0, [$employee['Status']]);
+            array_splice($columns, 7, 0, ['Status']);
+            array_splice($values, 7, 0, [$employee['Status']]);
         }
 
         $this->execute(
@@ -53,12 +53,12 @@ class EmployeeModel extends Model
 
     public function findByInternalId(int $id): ?array
     {
-        return $this->first('SELECT * FROM employees WHERE id = ?', [$id]);
+        return $this->first('SELECT * FROM employees WHERE id = ? AND organization_id = ?', [$id, $this->organizationId()]);
     }
 
     public function findByEmployeeId(string $employeeId): ?array
     {
-        return $this->first('SELECT * FROM employees WHERE EmployeeID = ?', [$employeeId]);
+        return $this->first('SELECT * FROM employees WHERE EmployeeID = ? AND organization_id = ?', [$employeeId, $this->organizationId()]);
     }
 
     public function updateEmployee(int $id, array $attributes, string $updatedAt): void
@@ -69,7 +69,7 @@ class EmployeeModel extends Model
                 throw new \RuntimeException('Employee not found.');
             }
 
-            $allowed = ['EmployeeID', 'FirstName', 'LastName', 'Email', 'Department'];
+            $allowed = ['EmployeeID', 'FirstName', 'LastName', 'Email', 'Department', 'JobTitle', 'WorkStatus'];
             $sets = [];
             $parameters = [];
             foreach ($allowed as $column) {
@@ -81,14 +81,15 @@ class EmployeeModel extends Model
             $sets[] = 'updated_at = ?';
             $parameters[] = $updatedAt;
             $parameters[] = $id;
-            $this->execute('UPDATE employees SET ' . implode(', ', $sets) . ' WHERE id = ?', $parameters);
+            $parameters[] = $this->organizationId();
+            $this->execute('UPDATE employees SET ' . implode(', ', $sets) . ' WHERE id = ? AND organization_id = ?', $parameters);
 
             $newEmployeeId = $attributes['EmployeeID'] ?? $current['EmployeeID'];
             if ($newEmployeeId !== $current['EmployeeID']) {
                 foreach (['parts_history', 'assignments', 'accessories_assignments', 'returned_custody', 'temp_assignments'] as $table) {
                     $this->execute(
-                        "UPDATE {$table} SET EmployeeID = ? WHERE EmployeeID = ?",
-                        [$newEmployeeId, $current['EmployeeID']]
+                        "UPDATE {$table} SET EmployeeID = ? WHERE EmployeeID = ? AND organization_id = ?",
+                        [$newEmployeeId, $current['EmployeeID'], $this->organizationId()]
                     );
                 }
             }
@@ -102,18 +103,18 @@ class EmployeeModel extends Model
                 SELECT pc.PCID, pc.PCName
                 FROM pcs pc
                 INNER JOIN assignments a ON a.PCID = pc.PCID
-                WHERE a.EmployeeID = ? AND a.Status = 'Assigned'
+                WHERE a.EmployeeID = ? AND a.organization_id = ? AND pc.organization_id = a.organization_id AND LOWER(a.Status) = 'assigned'
                 ORDER BY a.AssignedDate DESC
                 LIMIT 1
-                SQL, [$employeeId]);
+                SQL, [$employeeId, $this->organizationId()]);
 
             if ($computer) {
                 $this->returnAssets($employeeId, (int) $computer['PCID'], $computer['PCName'], $timestamp);
             }
 
             $this->execute(
-                'UPDATE employees SET Status = ?, updated_at = ? WHERE EmployeeID = ?',
-                [$status, $timestamp, $employeeId]
+                'UPDATE employees SET Status = ?, updated_at = ? WHERE EmployeeID = ? AND organization_id = ?',
+                [$status, $timestamp, $employeeId, $this->organizationId()]
             );
         });
     }
@@ -121,8 +122,8 @@ class EmployeeModel extends Model
     public function activeAccessoryIds(string $employeeId): array
     {
         return array_column($this->all(
-            "SELECT AccessoriesID FROM accessories_assignments WHERE EmployeeID = ? AND Status = 'Assigned'",
-            [$employeeId]
+            "SELECT AccessoriesID FROM accessories_assignments WHERE EmployeeID = ? AND organization_id = ? AND LOWER(Status) = 'assigned'",
+            [$employeeId, $this->organizationId()]
         ), 'AccessoriesID');
     }
 
@@ -134,23 +135,23 @@ class EmployeeModel extends Model
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         return $this->all(
             "SELECT AccessoriesName, AccessoriesID, PRNumber, Brand FROM accessories "
-            . "WHERE AccessoriesID IN ({$placeholders})",
-            array_values($ids)
+            . "WHERE organization_id = ? AND AccessoriesID IN ({$placeholders})",
+            array_merge([$this->organizationId()], array_values($ids))
         );
     }
 
     public function activeComputerAssignment(string $employeeId): ?array
     {
         return $this->first(
-            "SELECT PCID, created_at FROM assignments WHERE EmployeeID = ? AND Status = 'Assigned' "
+            "SELECT PCID, created_at FROM assignments WHERE EmployeeID = ? AND organization_id = ? AND LOWER(Status) = 'assigned' "
             . 'ORDER BY AssignedDate DESC LIMIT 1',
-            [$employeeId]
+            [$employeeId, $this->organizationId()]
         );
     }
 
     public function computerName(int $pcId): ?string
     {
-        $value = $this->scalar('SELECT PCName FROM pcs WHERE PCID = ?', [$pcId]);
+        $value = $this->scalar('SELECT PCName FROM pcs WHERE PCID = ? AND organization_id = ?', [$pcId, $this->organizationId()]);
         return $value === false ? null : (string) $value;
     }
 
@@ -160,48 +161,49 @@ class EmployeeModel extends Model
             SELECT p.PartType, p.Brand, p.Model, p.SerialNumber, p.uniqueID
             FROM pc_parts pp
             INNER JOIN parts p ON pp.PartID = p.PartID
-            WHERE pp.PCID = ?
-            SQL, [$pcId]);
+            WHERE pp.PCID = ? AND pp.organization_id = ? AND p.organization_id = pp.organization_id
+            SQL, [$pcId, $this->organizationId()]);
     }
 
     public function companyDetails(): array
     {
-        return $this->all('SELECT * FROM company_details');
+        return $this->all('SELECT * FROM company_details WHERE organization_id = ?', [$this->organizationId()]);
     }
 
     public function administrator(): ?array
     {
-        return $this->first("SELECT * FROM users WHERE type = 'Administrator' LIMIT 1");
+        return $this->first("SELECT * FROM users WHERE organization_id = ? AND type = 'Administrator' LIMIT 1", [$this->organizationId()]);
     }
 
     public function availableAccessories(): array
     {
         return $this->all(
-            'SELECT AccessoriesName, AccessoriesID, Brand, PRNumber, Qty FROM accessories WHERE Qty > 0'
+            'SELECT AccessoriesName, AccessoriesID, Brand, PRNumber, Qty FROM accessories WHERE organization_id = ? AND Qty > 0',
+            [$this->organizationId()]
         );
     }
 
     public function matchesIdentity(string $employeeId, string $email): bool
     {
         return (bool) $this->scalar(
-            'SELECT EXISTS(SELECT 1 FROM employees WHERE EmployeeID = ? AND Email = ?)',
-            [$employeeId, $email]
+            'SELECT EXISTS(SELECT 1 FROM employees WHERE organization_id = ? AND EmployeeID = ? AND Email = ?)',
+            [$this->organizationId(), $employeeId, $email]
         );
     }
 
     public function updateSignature(string $employeeId, string $path, string $timestamp): void
     {
         $this->execute(
-            'UPDATE employees SET Signature = ?, signature_upload_date = ?, updated_at = ? WHERE EmployeeID = ?',
-            [$path, $timestamp, $timestamp, $employeeId]
+            'UPDATE employees SET Signature = ?, signature_upload_date = ?, updated_at = ? WHERE EmployeeID = ? AND organization_id = ?',
+            [$path, $timestamp, $timestamp, $employeeId, $this->organizationId()]
         );
     }
 
     public function authenticate(string $email, string $employeeId): ?array
     {
         return $this->first(
-            'SELECT * FROM employees WHERE Email = ? AND EmployeeID = ?',
-            [$email, $employeeId]
+            'SELECT * FROM employees WHERE Email = ? AND EmployeeID = ? AND organization_id = ?',
+            [$email, $employeeId, $this->organizationId()]
         );
     }
 
@@ -211,58 +213,60 @@ class EmployeeModel extends Model
             SELECT DISTINCT pp.PartID
             FROM pc_parts pp
             INNER JOIN parts_history ph ON ph.PartID = pp.PartID
-            WHERE ph.EmployeeID = ? AND pp.PCID = ?
-            SQL, [$employeeId, $pcId]);
+            WHERE ph.EmployeeID = ? AND pp.PCID = ? AND ph.organization_id = ?
+              AND pp.organization_id = ph.organization_id
+            SQL, [$employeeId, $pcId, $this->organizationId()]);
 
         $accessories = $this->all(<<<'SQL'
             SELECT DISTINCT a.AccessoriesID, a.PRNumber, a.AccessoriesName
             FROM accessories_assignments aa
             INNER JOIN accessories a ON a.AccessoriesID = aa.AccessoriesID
-            WHERE aa.EmployeeID = ? AND aa.Status = 'Assigned'
-            SQL, [$employeeId]);
+            WHERE aa.EmployeeID = ? AND aa.organization_id = ? AND LOWER(aa.Status) = 'assigned'
+              AND a.organization_id = aa.organization_id
+            SQL, [$employeeId, $this->organizationId()]);
 
         foreach ($parts as $part) {
             $this->execute(
-                'INSERT INTO returned_custody (EmployeeID, PCID, PCName, PartID, created_at) '
-                . 'VALUES (?, ?, ?, ?, ?)',
-                [$employeeId, $pcId, $pcName, $part['PartID'], $timestamp]
+                'INSERT INTO returned_custody (organization_id, EmployeeID, PCID, PCName, PartID, created_at) '
+                . 'VALUES (?, ?, ?, ?, ?, ?)',
+                [$this->organizationId(), $employeeId, $pcId, $pcName, $part['PartID'], $timestamp]
             );
         }
         foreach ($accessories as $accessory) {
             $this->execute(
                 'INSERT INTO returned_custody '
-                . '(EmployeeID, PCID, PCName, AccessoriesID, AccessoriesPRNumber, AccessoriesName, created_at) '
-                . 'VALUES (?, ?, ?, ?, ?, ?, ?)',
-                [$employeeId, $pcId, $pcName, $accessory['AccessoriesID'], $accessory['PRNumber'], $accessory['AccessoriesName'], $timestamp]
+                . '(organization_id, EmployeeID, PCID, PCName, AccessoriesID, AccessoriesPRNumber, AccessoriesName, created_at) '
+                . 'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                [$this->organizationId(), $employeeId, $pcId, $pcName, $accessory['AccessoriesID'], $accessory['PRNumber'], $accessory['AccessoriesName'], $timestamp]
             );
         }
 
         $this->execute(
             "UPDATE assignments SET ReturnedDate = ?, Status = 'Returned', updated_at = ? "
-            . "WHERE PCID = ? AND EmployeeID = ? AND Status = 'Assigned'",
-            [$timestamp, $timestamp, $pcId, $employeeId]
+            . "WHERE PCID = ? AND EmployeeID = ? AND organization_id = ? AND LOWER(Status) = 'assigned'",
+            [$timestamp, $timestamp, $pcId, $employeeId, $this->organizationId()]
         );
         $this->execute(
-            "UPDATE pcs SET Status = 'Returned', updated_at = ? WHERE PCID = ?",
-            [$timestamp, $pcId]
+            "UPDATE pcs SET Status = 'Returned', updated_at = ? WHERE PCID = ? AND organization_id = ?",
+            [$timestamp, $pcId, $this->organizationId()]
         );
         $this->execute(
             "UPDATE parts_history SET Status = 'Returned', updated_at = ? "
-            . "WHERE EmployeeID = ? AND Status = 'Assigned'",
-            [$timestamp, $employeeId]
+            . "WHERE EmployeeID = ? AND organization_id = ? AND LOWER(Status) = 'assigned'",
+            [$timestamp, $employeeId, $this->organizationId()]
         );
 
         if ($accessories !== []) {
             $this->execute(
                 "UPDATE accessories_assignments SET Status = 'Returned', updated_at = ? "
-                . "WHERE EmployeeID = ? AND Status = 'Assigned'",
-                [$timestamp, $employeeId]
+                . "WHERE EmployeeID = ? AND organization_id = ? AND LOWER(Status) = 'assigned'",
+                [$timestamp, $employeeId, $this->organizationId()]
             );
             foreach ($accessories as $accessory) {
                 $this->execute(
                     'UPDATE accessories SET Qty = Qty + 1, AssignedCount = GREATEST(AssignedCount - 1, 0), '
-                    . 'UpdatedAt = ? WHERE AccessoriesID = ?',
-                    [$timestamp, $accessory['AccessoriesID']]
+                    . 'UpdatedAt = ? WHERE AccessoriesID = ? AND organization_id = ?',
+                    [$timestamp, $accessory['AccessoriesID'], $this->organizationId()]
                 );
             }
         }

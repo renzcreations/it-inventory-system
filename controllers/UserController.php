@@ -40,19 +40,12 @@ class UserController extends Controller
     {
         $username = $this->sanitize_input($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
-
-        // Track login attempts
-        if (!isset($_SESSION['login_attempts'])) {
-            $_SESSION['login_attempts'] = 0;
-            $_SESSION['last_attempt'] = 0;
-        }
+        $ipAddress = substr((string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 0, 45);
 
         $maxAttempts = 5;
-        $lockoutDuration = 360;
-        if ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['last_attempt']) < $lockoutDuration) {
-            $timeLeft = $lockoutDuration - (time() - $_SESSION['last_attempt']);
-            $minutesLeft = ceil($timeLeft / 60);
-            $_SESSION['warning'] = "Too many failed login attempts. Please try again in $minutesLeft minute(s).";
+        $lockoutMinutes = 15;
+        if ($this->users->recentFailedLoginCount(strtolower($username), $ipAddress, $lockoutMinutes) >= $maxAttempts) {
+            $_SESSION['warning'] = "Too many failed login attempts. Please try again in {$lockoutMinutes} minutes.";
             header('Location: /login');
             exit();
         }
@@ -66,20 +59,22 @@ class UserController extends Controller
         $user = $this->users->findByUsername($username);
 
         if (!$user || !password_verify($password, $user['password'])) {
-            $_SESSION['login_attempts'] = ($_SESSION['login_attempts'] ?? 0) + 1;
-            $_SESSION['last_attempt'] = time();
-            $attemptsLeft = $maxAttempts - ($_SESSION['login_attempts'] ?? 0);
+            $this->users->recordLoginAttempt(strtolower($username), $ipAddress, false);
+            $attemptsLeft = max(0, $maxAttempts - $this->users->recentFailedLoginCount(strtolower($username), $ipAddress, $lockoutMinutes));
             if ($attemptsLeft > 0) {
                 $_SESSION['login_old_input'] = $_POST;
                 $_SESSION['error'] = "Invalid credentials. You have $attemptsLeft attempt(s) left.";
             } else {
-                $timeLeft = $lockoutDuration - (time() - ($_SESSION['last_attempt'] ?? 0));
-                $minutesLeft = ceil($timeLeft / 60);
                 unset($_SESSION['login_old_input']);
-                $_SESSION['error'] = "Too many failed login attempts. Please try again in $minutesLeft minute(s).";
+                $_SESSION['error'] = "Too many failed login attempts. Please try again in {$lockoutMinutes} minutes.";
             }
             header('Location: /login');
             exit();
+        }
+
+        if (strcasecmp((string) ($user['status'] ?? 'Active'), 'Active') !== 0) {
+            $_SESSION['error'] = 'This account is inactive. Contact your workspace administrator.';
+            $this->redirect('/login');
         }
 
         if (!$user['email_code']) {
@@ -88,10 +83,11 @@ class UserController extends Controller
             exit();
         }
 
-        $_SESSION['login_attempts'] = 0;
+        $this->users->recordLoginAttempt(strtolower($username), $ipAddress, true, (int) ($user['organization_id'] ?? 1));
         session_regenerate_id(true);
         $_SESSION['login'] = true;
         $_SESSION['user_id'] = $user['id'];
+        $_SESSION['organization_id'] = max(1, (int) ($user['organization_id'] ?? 1));
         $_SESSION['username'] = htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8');
         $_SESSION['email'] = $user['email'];
         $_SESSION['name'] = $user['name'];
@@ -100,13 +96,6 @@ class UserController extends Controller
         $_SESSION['last_activity'] = time();
         $_SESSION['ip'] = $_SERVER['REMOTE_ADDR'];
         $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
-
-        // Remember Me
-        if (isset($_POST['rememberMe'])) {
-            $rememberToken = bin2hex(random_bytes(32));
-            setcookie("remember_token", $rememberToken, time() + (86400 * 30), "/");
-            echo "<script>localStorage.setItem('remember_token', '$rememberToken');</script>";
-        }
 
         // Update logged_date
         $currentTimestamp = (new DateTime())->format('Y-m-d H:i:s');
@@ -182,12 +171,13 @@ class UserController extends Controller
 
         if (!empty($errors)) {
             $_SESSION['register_old_input'] = $_POST;
-            $_SESSION['error'] = implode('<br><br>', $errors);
+            $_SESSION['error'] = implode("\n\n", $errors);
             header('Location: /register/' . urldecode($code));
             exit();
         }
 
         $user = [
+            'organization_id' => max(1, (int) ($invitation['organization_id'] ?? 1)),
             'name' => $name,
             'email' => $email,
             'username' => $username,
@@ -404,8 +394,7 @@ class UserController extends Controller
             exit();
         }
 
-        $safeName = preg_replace('/[^a-zA-Z0-9-_\.]/', '', $username);
-        $newFileName = $safeName . '.' . $fileExtension;
+        $newFileName = 'user-' . hash('sha256', (string) $_SESSION['user_id'] . random_bytes(16)) . '.' . $fileExtension;
         $uploadDir = __DIR__ . '/../Signature/Admin/';
 
         if (!is_dir($uploadDir)) {
@@ -424,8 +413,7 @@ class UserController extends Controller
             exit();
         }
 
-        // Maintain your $_ENV usage here
-        $fullPath = $_ENV['APP_URL'] . 'Signature/Admin/' . $newFileName;
+        $fullPath = rtrim($_ENV['APP_URL'], '/') . '/Signature/Admin/' . $newFileName;
         $date = date('Y-m-d H:i:s');
 
         try {
@@ -492,57 +480,7 @@ class UserController extends Controller
                 }
             }
 
-            $sqlDump = "-- HPL Database Backup\n";
-            $sqlDump .= "-- Generated: " . $currentTime->format('Y-m-d H:i:s') . "\n";
-            $sqlDump .= "-- Generated by: " . $username . "\n\n";
-            $sqlDump .= "SET FOREIGN_KEY_CHECKS = 0;\n\n";
-
-            $tables = $this->users->tableNames();
-
-            foreach ($tables as $tableName) {
-                $sqlDump .= "--\n-- Structure for table `$tableName`\n--\n";
-                $sqlDump .= "DROP TABLE IF EXISTS `$tableName`;\n";
-                $sqlDump .= $this->users->createTableSql($tableName) . ";\n\n";
-
-                $offset = 0;
-                $limit = 1000;
-                $hasMoreData = true;
-
-                while ($hasMoreData) {
-                    $rows = $this->users->tableRows($tableName, $offset, $limit);
-
-                    if (empty($rows)) {
-                        $hasMoreData = false;
-                        break;
-                    }
-
-                    if ($offset === 0) {
-                        $sqlDump .= "--\n-- Data for table `$tableName`\n--\n";
-                    }
-
-                    foreach ($rows as $data) {
-                        $columns = array_map(fn($col) => "`$col`", array_keys($data));
-                        $values = array_map(function ($value) {
-                            if ($value === null)
-                                return 'NULL';
-                            if (is_bool($value))
-                                return $value ? '1' : '0';
-                            $escaped = addslashes($value);
-                            return "'" . str_replace("'", "''", $escaped) . "'";
-                        }, array_values($data));
-
-                        $sqlDump .= "INSERT INTO `$tableName` (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $values) . ");\n";
-                    }
-
-                    $offset += $limit;
-                }
-
-                if ($offset > 0) {
-                    $sqlDump .= "\n";
-                }
-            }
-
-            $sqlDump .= "\nSET FOREIGN_KEY_CHECKS = 1;\n";
+            $sqlDump = $this->users->databaseDump($username, $currentTime->format('Y-m-d H:i:s'));
 
             $backupDir = __DIR__ . "/../backups/";
             if (!is_dir($backupDir)) {

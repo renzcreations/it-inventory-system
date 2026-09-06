@@ -10,6 +10,10 @@
                         class="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-amber-500"
                         placeholder="Computer Name" x-model="pcName" @input.debounce.500ms="checkPCName">
 
+                    <select name="Category" class="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-amber-500" required>
+                        <?php foreach ($computerCategories ?? [] as $option): ?><option value="<?= htmlspecialchars($option['name'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($option['name'], ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
+                    </select>
+
                     <?php if (!empty($tempPart)): ?>
                         <?php foreach ($tempPart as $item): ?>
                             <input type="hidden" name="PartID[]" value="<?= ($item['PartID']) ?>">
@@ -185,9 +189,10 @@
                 }
                 this.isChecking = true;
                 try {
-                    const response = await fetch(`https://hplinventory.22web.org/build/check?name=${encodeURIComponent(this.pcName)}`); //change the url to production url
-                    if (!response.ok) throw new Error('Network error');
-                    const data = await response.json();
+                    const data = await window.http.get('/build/check', {
+                        query: { name: this.pcName },
+                        timeout: 5000
+                    });
                     this.isAvailable = data.available;
                     this.pcNameError = !data.available;
                 } catch (error) {

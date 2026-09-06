@@ -9,8 +9,8 @@ class CompanyModel extends Model
     public function create(string $address, string $email, string $contact, string $createdAt): int
     {
         $this->execute(
-            'INSERT INTO company_details (address, email, contact, created_at) VALUES (?, ?, ?, ?)',
-            [$address, $email, $contact, $createdAt]
+            'INSERT INTO company_details (organization_id, address, email, contact, created_at) VALUES (?, ?, ?, ?, ?)',
+            [$this->organizationId(), $address, $email, $contact, $createdAt]
         );
         return $this->lastInsertId();
     }
@@ -29,9 +29,10 @@ class CompanyModel extends Model
         $sets[] = 'updated_at = ?';
         $parameters[] = $updatedAt;
         $parameters[] = $id;
+        $parameters[] = $this->organizationId();
 
         return $this->execute(
-            'UPDATE company_details SET ' . implode(', ', $sets) . ' WHERE id = ?',
+            'UPDATE company_details SET ' . implode(', ', $sets) . ' WHERE id = ? AND organization_id = ?',
             $parameters
         );
     }

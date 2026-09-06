@@ -1,7 +1,11 @@
 {
   "name": "tomarao/lightweight",
+  "description": "A multi-tenant IT inventory and asset custody application.",
+  "license": "proprietary",
   "autoload": {
     "psr-4": {
+      "System\\Core\\": "system/core/",
+      "System\\Services\\": "system/Services/",
       "System\\": "system/",
       "Controllers\\": "controllers/",
       "Models\\": "models/"
@@ -14,6 +18,7 @@
     }
   ],
   "require": {
-    "getbrevo/brevo-php": "2.0.4"
+    "getbrevo/brevo-php": "^2.0.4",
+    "dompdf/dompdf": "^3.1"
   }
 }
