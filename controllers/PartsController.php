@@ -2,65 +2,31 @@
 namespace Controllers;
 
 use Exception;
-use PDO;
-use System\Core\Database;
+use Models\PartsModel;
 use System\Core\Controller;
 
 class PartsController extends Controller
 {
-    protected $db;
+    private PartsModel $parts;
 
     public function __construct()
     {
-        $this->db = new Database();
+        $this->parts = new PartsModel();
     }
 
     private function getExcludedPartTypes()
     {
         $excludedPartTypes = ["Processor", "Motherboard", "GPU", "Keyboard", "Mouse", "Webcam", "Pen Display", "Pen Tablet", "Headset", "Power Supply"];
 
-        $placeholders = implode(',', array_fill(0, count($excludedPartTypes), '?'));
-        $sql = "SELECT DISTINCT PartType FROM temp_update_pc_parts WHERE PartType IN ($placeholders)";
-        $stmt = $this->db->query($sql, $excludedPartTypes);
-
-        return array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'PartType');
+        return $this->parts->excludedPartTypes($excludedPartTypes);
     }
     private function getAllPartsWithHistory()
     {
-        return $this->db->query("SELECT 
-                                        p.*
-                                    FROM parts
-                                    ORDER BY Status ASC")->fetchAll(PDO::FETCH_ASSOC);
+        return $this->parts->allParts();
     }
     private function getAvailableParts($excludedTypes, $tempPartIDs)
     {
-        $excludeConditions = ["p.Status = 'Available'"];
-
-        $excludeConditions[] = "p.PartID NOT IN (SELECT PartID FROM temp_update_pc_parts)";
-
-        if (!empty($excludedTypes)) {
-            $escapedTypes = array_map([$this, 'sanitize_input'], $excludedTypes); // FIXED
-            $excludeConditions[] = "p.PartType NOT IN ('" . implode("','", $escapedTypes) . "')";
-        }
-
-
-        $query = " SELECT p.*,
-                    COALESCE(e.FirstName, 'Unassigned') AS FirstName,
-                    COALESCE(e.LastName, '') AS LastName 
-                    FROM parts p
-                    LEFT JOIN (
-                        SELECT ph.PartID, ph.EmployeeID, ph.created_at, ph.updated_at 
-                        FROM parts_history ph
-                        INNER JOIN (
-                            SELECT PartID, MAX(created_at) AS latest 
-                            FROM parts_history 
-                            GROUP BY PartID
-                        ) latest_ph ON ph.PartID = latest_ph.PartID AND ph.created_at = latest_ph.latest
-                    ) latest ON p.PartID = latest.PartID
-                    LEFT JOIN employees e ON latest.EmployeeID = e.EmployeeID
-                    WHERE " . implode(' AND ', $excludeConditions);
-
-        return $this->db->query($query)->fetchAll(PDO::FETCH_ASSOC);
+        return $this->parts->availableParts($excludedTypes);
     }
     public function index()
     {
@@ -68,41 +34,12 @@ class PartsController extends Controller
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
         }
 
-        $this->db->query("SET SQL_BIG_SELECTS = 1");
-
-        $types = $this->db->query("SELECT DISTINCT PartType FROM parts")->fetchAll(PDO::FETCH_ASSOC);
-        $tempPart = $this->db->query("SELECT * FROM temp_update_pc_parts")->fetchAll(PDO::FETCH_ASSOC);
+        $types = $this->parts->partTypes();
+        $tempPart = $this->parts->temporaryUpdateParts();
         $tempPartIDs = array_column($tempPart, 'PartID');
-        $tempPC = $this->db->query("SELECT * FROM temp_pc LIMIT 1")->fetch(PDO::FETCH_ASSOC);
-        $temp_part = $this->db->query("SELECT * FROM temporary_storage_parts")->fetchAll(PDO::FETCH_ASSOC);
-
-        $parts = $this->db->query("
-                                        SELECT p.*, 
-                                        p.Status AS PartStatus, 
-                                        e.FirstName, 
-                                        e.LastName, 
-                                        ph.Status AS HistoryStatus,
-                                        pc.PCName,
-                                        pp.PartID as PartsIdentification,
-                                        pp.PCID
-                                    FROM parts p
-                                    LEFT JOIN parts_history ph 
-                                        ON ph.PartID = p.PartID 
-                                        AND ph.id = (SELECT MAX(id) FROM parts_history WHERE PartID = p.PartID)
-                                    LEFT JOIN pc_parts pp
-                                        ON pp.PartID = p.PartID
-                                    LEFT JOIN pcs pc
-                                        ON pc.PCID = pp.PCID
-                                    LEFT JOIN employees e 
-                                        ON e.EmployeeID = ph.EmployeeID 
-                                    ORDER BY 
-                                        CASE 
-                                            WHEN ph.Status = 'Returned' THEN 1 ELSE 0 
-                                        END ASC, 
-                                        PartStatus ASC
-                                    ");
-
-        $parts_data = $parts->fetchAll(PDO::FETCH_ASSOC);
+        $tempPC = $this->parts->temporaryComputer();
+        $temp_part = $this->parts->stagedParts();
+        $parts_data = $this->parts->partsWithCurrentHistory();
 
         $excludedTypes = $this->getExcludedPartTypes();
         $parts_available = $this->getAvailableParts($excludedTypes, $tempPartIDs);
@@ -126,13 +63,7 @@ class PartsController extends Controller
         while (true) {
             $newSerial = str_pad($counter, 8, '0', STR_PAD_LEFT);
             $fullSerial = "NA$PartType$newSerial";
-            $sql = "
-            SELECT SerialNumber FROM parts WHERE SerialNumber = ?
-            UNION
-            SELECT SerialNumber FROM temporary_storage_parts WHERE SerialNumber = ?
-        ";
-            $stmt = $this->db->query($sql, [$fullSerial, $fullSerial]);
-            if ($stmt->rowCount() === 0) {
+            if (!$this->parts->serialExistsInInventoryOrStage($fullSerial)) {
                 return $newSerial;
             }
             $counter++;
@@ -142,19 +73,8 @@ class PartsController extends Controller
     private function generateNextUniqueID($partType)
     {
         $cleanedPartType = str_replace(' ', '', $partType);
-        $pattern = '^' . preg_quote($cleanedPartType, '/') . '[0-9]+$';
-
-        $sql = "SELECT MAX(CAST(SUBSTRING(uniqueID, LENGTH(?) + 1) AS UNSIGNED)) AS max_num 
-            FROM parts 
-            WHERE PartType = ? 
-            AND uniqueID REGEXP ?";
-
-        $stmt = $this->db->query($sql, [$cleanedPartType, $partType, $pattern]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        $max_num = $row['max_num'] ?? 0;
-        $next_num = $max_num + 1;
-
-        return $cleanedPartType . str_pad($next_num, 5, '0', STR_PAD_LEFT);
+        $nextNumber = $this->parts->nextPartNumber($cleanedPartType, $partType);
+        return $cleanedPartType . str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
     }
 
     public function create()
@@ -193,9 +113,7 @@ class PartsController extends Controller
         }
 
         // Check for duplicate serial number
-        $checkSql = "SELECT SerialNumber FROM parts WHERE SerialNumber = ? UNION SELECT SerialNumber FROM temporary_storage_parts WHERE SerialNumber = ?";
-        $checkStmt = $this->db->query($checkSql, [$SerialNumber, $SerialNumber]);
-        if ($checkStmt->rowCount() > 0) {
+        if ($this->parts->serialExistsInInventoryOrStage($SerialNumber)) {
             $_SESSION['error'] = "The serial number '$SerialNumber' was already registered.";
             $_SESSION['old_input'] = $_POST;
             header("Location: /parts");
@@ -203,13 +121,11 @@ class PartsController extends Controller
         }
 
         // Insert into temporary_storage_parts
-        $insertSql = "INSERT INTO temporary_storage_parts (PRNumber, PartType, Brand, Model, SerialNumber, created_at) VALUES (?, ?, ?, ?, ?, ?)";
-        $result = $this->db->query($insertSql, [$PRNumber, $PartType, $Brand, $Model, $SerialNumber, $created_at]);
-
-        if ($result) {
+        try {
+            $this->parts->stagePart(compact('PRNumber', 'PartType', 'Brand', 'Model', 'SerialNumber', 'created_at'));
             $_SESSION['success'] = "$Brand $Model was successfully added!";
             unset($_SESSION['old_input']);
-        } else {
+        } catch (Exception $exception) {
             $_SESSION['error'] = "There was a problem adding $Brand $Model. Please try again.";
             $_SESSION['old_input'] = $_POST;
         }
@@ -264,9 +180,7 @@ class PartsController extends Controller
             // Check for existing serial numbers in the database
             $existingSerials = [];
             foreach ($parts as $part) {
-                $checkSql = "SELECT SerialNumber FROM parts WHERE PartType = ? AND SerialNumber = ?";
-                $checkStmt = $this->db->query($checkSql, [$part['PartType'], $part['SerialNumber']]);
-                if ($checkStmt->rowCount() > 0) {
+                if ($this->parts->serialExists($part['PartType'], $part['SerialNumber'])) {
                     $existingSerials[] = "{$part['SerialNumber']} for {$part['PartType']}";
                 }
             }
@@ -279,49 +193,16 @@ class PartsController extends Controller
 
             // Insert all parts in a transaction
             $created_at = date('Y-m-d H:i:s.u');
-            $this->db->query("BEGIN");
             try {
-                foreach ($parts as $part) {
-                    $retries = 0;
-                    $maxRetries = 5;
-                    $success = false;
-
-                    do {
+                $this->parts->transaction(function () use ($parts, $created_at): void {
+                    foreach ($parts as $part) {
                         $uniqueID = $this->sanitize_input($this->generateNextUniqueID($part['PartType']), 'upper');
-                        $insertSql = "INSERT INTO parts (uniqueID, PartType, Brand, Model, SerialNumber, PRNumber, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
-                        $stmt = $this->db->query($insertSql, [
-                            $uniqueID,
-                            $part['PartType'],
-                            $part['Brand'],
-                            $part['Model'],
-                            $part['SerialNumber'],
-                            $part['PRNumber'],
-                            $created_at
-                        ]);
-                        if ($stmt) {
-                            $success = true;
-                            break;
-                        } else {
-                            // Check for duplicate uniqueID (race condition)
-                            $errorInfo = $stmt ? $stmt->errorInfo() : [null, null, 'Unknown DB error'];
-                            if (isset($errorInfo[1]) && $errorInfo[1] == 1062) {
-                                $retries++;
-                            } else {
-                                throw new Exception($errorInfo[2] ?? 'Unknown DB error', $errorInfo[1] ?? 0);
-                            }
-                        }
-                    } while ($retries < $maxRetries);
-
-                    if (!$success) {
-                        throw new Exception("Failed to generate unique ID for {$part['PartType']} after $maxRetries attempts.");
+                        $this->parts->createPart($part + ['uniqueID' => $uniqueID, 'created_at' => $created_at]);
                     }
-                }
-
-                $this->db->query("TRUNCATE TABLE temporary_storage_parts");
-                $this->db->query("COMMIT");
+                    $this->parts->clearStagedParts();
+                });
                 $_SESSION['success'] = 'All items were successfully added!';
             } catch (Exception $e) {
-                $this->db->query("ROLLBACK");
                 $_SESSION['error'] = $e->getCode() === 1062
                     ? 'One or more serial numbers are already registered.'
                     : 'Something went wrong. Please try again.';
@@ -345,8 +226,8 @@ class PartsController extends Controller
             die('Invalid employee ID');
         }
 
-        $stmt = $this->db->query("SELECT * FROM parts WHERE PartID = ?", [$id]);
-        $partData = $stmt && $stmt->rowCount() > 0 ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        $part = $this->parts->find((int) $id);
+        $partData = $part ? [$part] : [];
 
         $this->view('pages/partials/parts/edit', [
             'title' => 'Update Parts',
@@ -363,44 +244,9 @@ class PartsController extends Controller
         $SerialNumber = $this->sanitize_input($_POST['SerialNumber'] ?? '');
 
         try {
-            $this->db->query("BEGIN");
-            $updates = [];
-            $params = [];
-
-            if (!empty($uniqueID)) {
-                $updates[] = "uniqueID = ?";
-                $params[] = $uniqueID;
-            }
-            if (!empty($Brand)) {
-                $updates[] = "Brand = ?";
-                $params[] = $Brand;
-            }
-            if (!empty($Model)) {
-                $updates[] = "Model = ?";
-                $params[] = $Model;
-            }
-            if (!empty($SerialNumber)) {
-                $updates[] = "SerialNumber = ?";
-                $params[] = $SerialNumber;
-            }
-
-            $updates[] = "updated_at = ?";
-            $params[] = $date;
-
-            if (!empty($updates)) {
-                $sql = "UPDATE parts SET " . implode(", ", $updates) . " WHERE PartID = ?";
-                $params[] = $PartID;
-
-                $this->db->query($sql, $params);
-
-                $_SESSION['success'] = "$uniqueID's information updated successfully!";
-            } else {
-                $_SESSION['warning'] = "No changes detected.";
-            }
-
-            $this->db->query("COMMIT");
+            $this->parts->updatePart((int) $PartID, compact('uniqueID', 'Brand', 'Model', 'SerialNumber'), $date);
+            $_SESSION['success'] = "$uniqueID's information updated successfully!";
         } catch (Exception $e) {
-            $this->db->query("ROLLBACK");
             $_SESSION['error'] = "There's an error with the server, kindly contact the system administrator for more information.";
         }
 
@@ -415,22 +261,12 @@ class PartsController extends Controller
         $updated_at = date('Y-m-d_H:i:s.u');
 
         try {
-            $this->db->query("BEGIN");
-
-            $result = $this->db->query(
-                "UPDATE parts SET Status = ?, updated_at = ? WHERE PartID = ?",
-                [$status, $updated_at, $id]
-            );
-
-            if ($result) {
-                $this->db->query("COMMIT");
+            if ($this->parts->updateStatus((int) $id, $status, $updated_at) >= 0) {
                 $_SESSION['success'] = $name . ' status updated!';
             } else {
-                $this->db->query("ROLLBACK");
                 $_SESSION['error'] = 'There was a problem updating the status of ' . $name . '! Please try again!';
             }
         } catch (Exception $e) {
-            $this->db->query("ROLLBACK");
             $_SESSION['error'] = 'There was a problem updating the status of ' . $name . '! Please try again!';
         }
 

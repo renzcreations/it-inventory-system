@@ -28,4 +28,31 @@ class Database {
         $stmt->execute($params);
         return $stmt;
     }
+
+    public function beginTransaction(): bool
+    {
+        return $this->connection->beginTransaction();
+    }
+
+    public function commit(): bool
+    {
+        return $this->connection->commit();
+    }
+
+    public function rollBack(): bool
+    {
+        return $this->connection->inTransaction()
+            ? $this->connection->rollBack()
+            : false;
+    }
+
+    public function inTransaction(): bool
+    {
+        return $this->connection->inTransaction();
+    }
+
+    public function lastInsertId(): string
+    {
+        return $this->connection->lastInsertId();
+    }
 }

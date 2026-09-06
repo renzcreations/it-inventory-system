@@ -2,72 +2,26 @@
 namespace Controllers;
 
 use Exception;
-use PDO;
-use System\Core\Database;
+use Models\BuildModel;
 use System\Core\Controller;
 
 class BuildController extends Controller
 {
-    protected $db;
+    private BuildModel $builds;
 
     public function __construct()
     {
-        $this->db = new Database();
+        $this->builds = new BuildModel();
     }
     public function index()
     {
-        $tempParts = $this->db->query("SELECT * FROM temp_pc_parts");
-        $tempPart = $tempParts->fetchAll(PDO::FETCH_ASSOC);
+        $tempPart = $this->builds->stagedParts();
 
         $excludedPartTypesList = ["Processor", "Motherboard", "GPU", "Keyboard", "Mouse", "Webcam", "Pen Display", "Pen Tablet", "Headset", "Power Supply"];
-        $placeholders = implode(',', array_fill(0, count($excludedPartTypesList), '?'));
-
-        // Get excluded types from temp_pc_parts
-        $stmt = $this->db->query("SELECT DISTINCT PartType FROM temp_pc_parts WHERE PartType IN ($placeholders)", $excludedPartTypesList);
-        $excludedTypes = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $excludedTypes = array_column($excludedTypes, 'PartType');
-
-        $partsQuery = "SELECT * FROM parts WHERE Status = 'Available'";
-        $conditions = [];
-        $params = [];
-
-        $conditions[] = "PartID NOT IN (SELECT PartID FROM temp_pc_parts)";
-
-        if (!empty($excludedTypes)) {
-            $typePlaceholders = implode(',', array_fill(0, count($excludedTypes), '?'));
-            $conditions[] = "PartType NOT IN ($typePlaceholders)";
-            $params = array_merge($params, $excludedTypes);
-        }
-
-        if (!empty($conditions)) {
-            $partsQuery .= " AND " . implode(' AND ', $conditions);
-        }
-
-        $partsData = $this->db->query($partsQuery . ' ORDER BY created_at DESC', $params);
-        $parts = $partsData->fetchAll(PDO::FETCH_ASSOC);
-
-        // Grouped query for latest part per type
-        $groupedQuery = "SELECT PartType, MAX(created_at) AS latest_date FROM parts WHERE Status = 'Available'";
-        $groupedParams = [];
-        if (!empty($excludedTypes)) {
-            $typePlaceholders = implode(',', array_fill(0, count($excludedTypes), '?'));
-            $groupedQuery .= " AND PartType NOT IN ($typePlaceholders)";
-            $groupedParams = $excludedTypes;
-        }
-        $groupedQuery .= " GROUP BY PartType";
-        $types = $this->db->query($groupedQuery, $groupedParams);
-        $type = $types->fetchAll(PDO::FETCH_ASSOC);
-
-        // Query for available part types
-        $partTypesQuery = "SELECT DISTINCT PartType FROM parts WHERE Status = 'Available'";
-        $partTypesParams = [];
-        if (!empty($excludedTypes)) {
-            $typePlaceholders = implode(',', array_fill(0, count($excludedTypes), '?'));
-            $partTypesQuery .= " AND PartType NOT IN ($typePlaceholders)";
-            $partTypesParams = $excludedTypes;
-        }
-        $partTypesResult = $this->db->query($partTypesQuery, $partTypesParams);
-        $partTypes = $partTypesResult->fetchAll(PDO::FETCH_ASSOC);
+        $excludedTypes = $this->builds->excludedPartTypes($excludedPartTypesList);
+        $parts = $this->builds->availableParts($excludedTypes);
+        $type = $this->builds->availablePartTypeDates($excludedTypes);
+        $partTypes = $this->builds->availablePartTypes($excludedTypes);
 
         $this->view('pages/build', [
             'title' => 'Build a Computer',
@@ -90,10 +44,14 @@ class BuildController extends Controller
         $created_at = date('Y-m-d H:i:s.u');
 
         try {
-            $this->db->query(
-                "INSERT INTO temp_pc_parts (PartID, PartType, Brand, Model, SerialNumber, created_At) VALUES (?, ?, ?, ?, ?, ?)",
-                [$PartID, $PartType, $Brand, $Model, $SerialNumber, $created_at]
-            );
+            $this->builds->stagePart([
+                'PartID' => $PartID,
+                'PartType' => $PartType,
+                'Brand' => $Brand,
+                'Model' => $Model,
+                'SerialNumber' => $SerialNumber,
+                'created_at' => $created_at,
+            ]);
             $_SESSION['success'] = $partName . ' added';
         } catch (Exception $e) {
             $_SESSION['error'] = 'There was a problem adding ' . $Brand . '! Please try again.';
@@ -112,12 +70,8 @@ class BuildController extends Controller
 
             $name = $_GET['name'];
 
-            // Use your Database abstraction (PDO)
-            $stmt = $this->db->query("SELECT PCName FROM pcs WHERE PCName = ?", [$name]);
-            $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
             echo json_encode([
-                'available' => $row === false, // true if not found
+                'available' => !$this->builds->computerNameExists($name),
                 'name' => $name
             ]);
 
@@ -157,41 +111,14 @@ class BuildController extends Controller
         }
 
         try {
-            $this->db->query("BEGIN");
-
-            // Insert new PC
-            $this->db->query(
-                "INSERT INTO pcs (PCName, created_at) VALUES (?, ?)",
-                [$PCName, $created_at]
-            );
-
-            // Get the last inserted PCID
-            $PCID = $this->db->query("SELECT LAST_INSERT_ID() AS id")->fetch(PDO::FETCH_ASSOC)['id'];
-
-            // Insert parts and update their status
-            foreach ($_POST['PartID'] as $PartID) {
-                $cleanPartID = intval($PartID);
-
-                $this->db->query(
-                    "INSERT INTO pc_parts (PCID, PartID, created_at) VALUES (?, ?, ?)",
-                    [$PCID, $cleanPartID, $created_at]
-                );
-
-                $this->db->query(
-                    "UPDATE parts SET status = 'In Use', updated_at = ? WHERE PartID = ?",
-                    [$updated_at, $cleanPartID]
-                );
-            }
-
-            $this->db->query("TRUNCATE TABLE temp_pc_parts");
-            $this->db->query("COMMIT");
+            $partIds = array_map('intval', $_POST['PartID']);
+            $this->builds->buildComputer($PCName, $partIds, $created_at);
 
             $_SESSION['success'] = htmlspecialchars($PCName, ENT_QUOTES, 'UTF-8') . ' created successfully!';
             header("Location: /build");
             exit();
 
         } catch (Exception $e) {
-            $this->db->query("ROLLBACK");
             $_SESSION['error'] = "There's an error with the server, kindly contact the system administrator for more information.";
             header("Location: /build");
             exit();
@@ -203,22 +130,12 @@ class BuildController extends Controller
         $Brand = $this->sanitize_input($_POST['Brand'] ?? '');
 
         try {
-            $this->db->query("BEGIN");
-
-            $stmt = $this->db->query(
-                "DELETE FROM temp_pc_parts WHERE PartID = ?",
-                [$PartID]
-            );
-
-            if ($stmt) {
-                $this->db->query("COMMIT");
+            if ($this->builds->removeStagedPart((int) $PartID) >= 0) {
                 $_SESSION['success'] = $Brand . ' has been deleted!';
             } else {
-                $this->db->query("ROLLBACK");
                 $_SESSION['error'] = 'There was a problem updating the status of ' . $Brand . '! Please try again!';
             }
         } catch (Exception $e) {
-            $this->db->query("ROLLBACK");
             $_SESSION['error'] = 'There was a problem updating the status of ' . $Brand . '! Please try again!';
         }
 

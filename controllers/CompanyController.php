@@ -1,19 +1,17 @@
 <?php
 namespace Controllers;
 
-use DateTime;
 use Exception;
-use System\Core\Database;
+use Models\CompanyModel;
 use System\Core\Controller;
-use PDO;
 
 class CompanyController extends Controller
 {
-    protected $db;
+    private CompanyModel $companies;
 
     public function __construct()
     {
-        $this->db = new Database();
+        $this->companies = new CompanyModel();
     }
 
     public function add()
@@ -37,16 +35,11 @@ class CompanyController extends Controller
         }
 
         try {
-            $this->db->query('BEGIN');
-
-            $info = $this->db->query("INSERT INTO company_details (address, email, contact, created_at) VALUES (?, ?, ?, ?)", [$company_address, $company_email, $company_contact, $date]);
-            $company_old_input = $_SESSION['company_old_input'] ?? [];
+            $this->companies->create($company_address, $company_email, $company_contact, $date);
             unset($_SESSION['company_old_input']);
 
             $_SESSION['success'] = "Information saved successfully!";
-            $this->db->query('COMMIT');
         } catch (Exception $e) {
-            $this->db->query('ROLLBACK');
             $_SESSION['error'] = "Database error, kindly contact the system administrator for more information." . $e->getMessage();
         }
 
@@ -61,40 +54,10 @@ class CompanyController extends Controller
         $email = filter_var(trim($_POST['email'] ?? ''), FILTER_SANITIZE_EMAIL);
         $contact = $this->sanitize_input($_POST['contact'] ?? '');
 
-        $updates = [];
-        $params = [];
-
-        if (!empty($address)) {
-            $updates[] = "address = ?";
-            $params[] = $address;
-        }
-        if (!empty($email)) {
-            $updates[] = "email = ?";
-            $params[] = $email;
-        }
-        if (!empty($contact)) {
-            $updates[] = "contact = ?";
-            $params[] = $contact;
-        }
-
-        $updates[] = "updated_at = ?";
-        $params[] = $date;
-
         try {
-            $this->db->query("BEGIN");
-
-            if (!empty($updates)) {
-                $sql = "UPDATE company_details SET " . implode(", ", $updates) . " WHERE id = 1";
-                $stmt = $this->db->query($sql, $params); // Pass only $params
-
-                $_SESSION['success'] = "Company information updated successfully!";
-            } else {
-                $_SESSION['warning'] = "No changes detected.";
-            }
-
-            $this->db->query("COMMIT");
+            $this->companies->update(1, compact('address', 'email', 'contact'), $date);
+            $_SESSION['success'] = "Company information updated successfully!";
         } catch (Exception $e) {
-            $this->db->query("ROLLBACK");
             $_SESSION['error'] = "Database error, kindly contact the system administrator for more information: " . $e->getMessage();
         }
 

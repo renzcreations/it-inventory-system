@@ -29,4 +29,26 @@ class Controller
             return ucwords(strtolower($value));
         return $value;
     }
+
+    protected function redirect(string $path): never
+    {
+        header('Location: ' . $path);
+        exit;
+    }
+
+    protected function redirectBack(string $fallback = '/'): never
+    {
+        $referer = $_SERVER['HTTP_REFERER'] ?? '';
+        $target = $fallback;
+
+        if ($referer !== '') {
+            $refererHost = parse_url($referer, PHP_URL_HOST);
+            $currentHost = $_SERVER['HTTP_HOST'] ?? '';
+            if ($refererHost === null || strcasecmp((string) $refererHost, $currentHost) === 0) {
+                $target = $referer;
+            }
+        }
+
+        $this->redirect($target);
+    }
 }

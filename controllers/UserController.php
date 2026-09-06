@@ -7,18 +7,17 @@ use Brevo\Client\Model\SendSmtpEmail;
 use DateTime;
 use Exception;
 use GuzzleHttp\Client;
-use System\Core\Database;
+use Models\UserModel;
 use System\Core\Controller;
-use PDO;
 use ZipArchive;
 
 class UserController extends Controller
 {
-    protected $db;
+    private UserModel $users;
 
     public function __construct()
     {
-        $this->db = new Database();
+        $this->users = new UserModel();
     }
 
     public function welcome()
@@ -64,7 +63,7 @@ class UserController extends Controller
             exit();
         }
 
-        $user = $this->db->query("SELECT * FROM users WHERE username = ?", [$username])->fetch(PDO::FETCH_ASSOC);
+        $user = $this->users->findByUsername($username);
 
         if (!$user || !password_verify($password, $user['password'])) {
             $_SESSION['login_attempts'] = ($_SESSION['login_attempts'] ?? 0) + 1;
@@ -111,7 +110,7 @@ class UserController extends Controller
 
         // Update logged_date
         $currentTimestamp = (new DateTime())->format('Y-m-d H:i:s');
-        $this->db->query("UPDATE users SET logged_date = ? WHERE username = ?", [$currentTimestamp, $username]);
+        $this->users->markLoggedIn($username, $currentTimestamp);
 
         header('Location: /dashboard');
         exit();
@@ -163,28 +162,21 @@ class UserController extends Controller
             $errors[] = 'Passwords do not match.';
         }
 
-        $check = $this->db->query("SELECT * FROM register WHERE email_code = ?", [$code]);
-        if ($check && $check->rowCount() !== 1) {
+        $invitation = $this->users->invitationByCode($code);
+        if (!$invitation) {
             $_SESSION['error'] = 'Invalid or expired registration code';
             header('Location: /register/' . urldecode($code));
             exit();
         }
 
-        $user = $check->fetch(PDO::FETCH_ASSOC);
-
-        if ($email !== $user['email']) {
+        if ($email !== $invitation['email']) {
             $_SESSION['error'] = 'Email does not match registration invitation';
             header('Location: /register/' . urldecode($code));
             exit();
         }
 
         // Check for existing email or username
-        $existing = $this->db->query(
-            "SELECT id FROM users WHERE email = ? OR username = ?",
-            [$email, $username]
-        )->fetch(PDO::FETCH_ASSOC);
-
-        if ($existing) {
+        if ($this->users->userExists($email, $username)) {
             $errors[] = 'Email or username already exists.';
         }
 
@@ -203,12 +195,7 @@ class UserController extends Controller
             'email_code' => $code,
         ];
 
-        $this->db->query(
-            "INSERT INTO users (name, email, email_code, username, password) VALUES (?, ?, ?, ?, ?)",
-            array_values($user)
-        );
-
-        $this->db->query("DELETE FROM register WHERE email_code = ?", [$code]);
+        $this->users->createUser($user);
 
         $_SESSION['success'] = 'Registration successful! Please login';
         unset($_SESSION['register_old_input']);
@@ -225,14 +212,12 @@ class UserController extends Controller
 
     public function dashboard()
     {
-        $employeeData = $this->db->query("SELECT * FROM employees ORDER BY signature_upload_date DESC LIMIT 5");
-        $employees = $employeeData ? $employeeData->fetchAll(PDO::FETCH_ASSOC) : [];
+        $employees = $this->users->recentEmployees();
 
         $partsCount = $this->getPartsCount();
         $signedCount = $this->getSignedCount();
 
-        $accessoriesCount = $this->db->query("SELECT AccessoriesName, SUM(Qty) as totalQty, SUM(AssignedCount) as totalAssigned, SUM(DefectiveCount) as totalDefective FROM accessories GROUP BY AccessoriesName");
-        $accessories = $accessoriesCount->fetchAll(PDO::FETCH_ASSOC);
+        $accessories = $this->users->accessoryTotals();
 
         $this->view('dashboard', [
             'title' => 'Dashboard',
@@ -248,11 +233,7 @@ class UserController extends Controller
 
     public function getPartsCount()
     {
-        $partsData = $this->db->query("SELECT Status, COUNT(*) AS count FROM parts GROUP BY Status");
-        $parts = [];
-        while ($row = $partsData->fetch(PDO::FETCH_ASSOC)) {
-            $parts[] = $row;
-        }
+        $parts = $this->users->partStatusCounts();
 
         $availableCount = 0;
         $inUseCount = 0;
@@ -277,10 +258,9 @@ class UserController extends Controller
 
     public function getSignedCount()
     {
-        $signedData = $this->db->query("SELECT Signature, COUNT(*) AS count FROM employees WHERE Status = 'Active' GROUP BY Signature");
         $signed = 0;
         $unsigned = 0;
-        $rows = $signedData->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $this->users->signatureCounts();
 
         foreach ($rows as $data) {
             if ($data['Signature'] !== null && $data['Signature'] !== '') {
@@ -298,13 +278,8 @@ class UserController extends Controller
 
     public function profile()
     {
-        $user = $this->db->query(
-            "SELECT * FROM users WHERE id = ?",
-            [$_SESSION['user_id']]
-        )->fetch(PDO::FETCH_ASSOC);
-
-        $company = $this->db->query("SELECT * FROM company_details");
-        $data = $company->fetchAll(PDO::FETCH_ASSOC);
+        $user = $this->users->find((int) $_SESSION['user_id']);
+        $data = $this->users->companyDetails();
 
         $this->view('profile/profile', [
             'title' => 'Profile',
@@ -322,43 +297,12 @@ class UserController extends Controller
         $username = $this->sanitize_input($_POST['username'] ?? '');
 
         try {
-            $this->db->query("BEGIN");
-            $updates = [];
-            $params = [];
-            $types = "";
-
-            if (!empty($name)) {
-                $updates[] = "name = ?";
-                $params[] = $name;
-                $types .= "s";
-            }
-            if (!empty($email)) {
-                $updates[] = "email = ?";
-                $params[] = $email;
-                $types .= "s";
-            }
-            if (!empty($username)) {
-                $updates[] = "username = ?";
-                $params[] = $username;
-                $types .= "s";
-            }
-
-            if (empty($updates)) {
+            if ($name === '' && $email === '' && $username === '') {
                 $_SESSION['warning'] = "No changes detected.";
-                $this->db->query("COMMIT");
                 header("Location: /profile");
                 exit();
             }
-
-            $updates[] = "updated_at = ?";
-            $params[] = $date;
-            $types .= "s";
-
-            $sql = "UPDATE users SET " . implode(", ", $updates) . " WHERE username = ?";
-            $params[] = $old_username;
-            $types .= "s";
-
-            $stmt = $this->db->query($sql, $params); // Removed the array wrapper around $params
+            $this->users->updateProfile($old_username, compact('name', 'email', 'username'), $date);
 
             if (!empty($username) && $username !== $old_username) {
                 unset($_SESSION['username']);
@@ -366,9 +310,7 @@ class UserController extends Controller
             }
 
             $_SESSION['success'] = "Profile updated successfully!";
-            $this->db->query("COMMIT");
         } catch (Exception $e) {
-            $this->db->query("ROLLBACK");
             $_SESSION['error'] = "There's an error with the server, kindly contact the system administrator for more information." . $e->getMessage();
         }
 
@@ -389,9 +331,7 @@ class UserController extends Controller
             exit();
         }
 
-        $stmt = $this->db->query("SELECT password FROM users WHERE username = ?", [$username]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $storedHashedPassword = $result['password'];
+        $storedHashedPassword = $this->users->passwordHash($username);
 
         if (!password_verify($oldPassword, $storedHashedPassword)) {
             $_SESSION['warning'] = 'Old password is incorrect!';
@@ -417,7 +357,7 @@ class UserController extends Controller
         $updated_at = date('Y-m-d H:i:s');
 
         try {
-            $updatePassword = $this->db->query("UPDATE users SET password = ?, updated_at = ? WHERE username = ?", [$hashedPassword, $updated_at, $username]);
+            $this->users->updatePassword($username, $hashedPassword, $updated_at);
             $_SESSION['success'] = "Password updated!";
         } catch (Exception $e) {
             $_SESSION['error'] = "There's an error with the server, kindly contact the system administrator for more information." . $e->getMessage();
@@ -489,17 +429,8 @@ class UserController extends Controller
         $date = date('Y-m-d H:i:s');
 
         try {
-            $this->db->query('BEGIN');
-
-            // Get old signature path for cleanup
-            $stmt = $this->db->query("SELECT signature FROM users WHERE username = ?", [$username]);
-            $oldSignature = $stmt->fetchColumn();
-
-            // Update with full path including APP_URL
-            $this->db->query(
-                "UPDATE users SET signature = ?, updated_at = ? WHERE username = ?",
-                [$fullPath, $date, $username]
-            );
+            $oldSignature = $this->users->signature($username);
+            $this->users->updateSignature($username, $fullPath, $date);
 
             // Clean up old file if it exists
             if ($oldSignature) {
@@ -510,10 +441,8 @@ class UserController extends Controller
                 }
             }
 
-            $this->db->query('COMMIT');
             $_SESSION['success'] = 'Signature uploaded successfully!';
         } catch (Exception $e) {
-            $this->db->query('ROLLBACK');
             if (file_exists($targetPath)) {
                 unlink($targetPath);
             }
@@ -546,14 +475,10 @@ class UserController extends Controller
 
         try {
             if (!$isFromCron) {
-                $userStmt = $this->db->query("SELECT backup_date FROM users WHERE id = ?", [$userId]);
-                $userData = $userStmt->fetch(PDO::FETCH_ASSOC);
-
-                if (!$userData) {
+                $lastManualBackup = $this->users->backupDate((int) $userId);
+                if ($this->users->find((int) $userId) === null) {
                     throw new Exception("User not found");
                 }
-
-                $lastManualBackup = $userData['backup_date'];
 
                 if ($isManualBackup && $lastManualBackup) {
                     $lastBackupTime = new DateTime($lastManualBackup);
@@ -572,23 +497,19 @@ class UserController extends Controller
             $sqlDump .= "-- Generated by: " . $username . "\n\n";
             $sqlDump .= "SET FOREIGN_KEY_CHECKS = 0;\n\n";
 
-            $tables = $this->db->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+            $tables = $this->users->tableNames();
 
             foreach ($tables as $tableName) {
-                $createStmt = $this->db->query("SHOW CREATE TABLE `$tableName`");
-                $createTable = $createStmt->fetch(PDO::FETCH_NUM);
-
                 $sqlDump .= "--\n-- Structure for table `$tableName`\n--\n";
                 $sqlDump .= "DROP TABLE IF EXISTS `$tableName`;\n";
-                $sqlDump .= $createTable[1] . ";\n\n";
+                $sqlDump .= $this->users->createTableSql($tableName) . ";\n\n";
 
                 $offset = 0;
                 $limit = 1000;
                 $hasMoreData = true;
 
                 while ($hasMoreData) {
-                    $dataStmt = $this->db->query("SELECT * FROM `$tableName` LIMIT $offset, $limit");
-                    $rows = $dataStmt->fetchAll(PDO::FETCH_ASSOC);
+                    $rows = $this->users->tableRows($tableName, $offset, $limit);
 
                     if (empty($rows)) {
                         $hasMoreData = false;
@@ -654,8 +575,7 @@ class UserController extends Controller
 
             $downloadLink = $_ENV['APP_URL'] . 'backups/' . $zipFilename;
 
-            $adminStmt = $this->db->query("SELECT name, email FROM users WHERE type = 'Administrator' LIMIT 1");
-            $admin = $adminStmt->fetch(PDO::FETCH_ASSOC);
+            $admin = $this->users->administrator();
 
             if (!$admin) {
                 throw new Exception("No administrator found");
@@ -750,11 +670,8 @@ class UserController extends Controller
 
     public function users()
     {
-        $usersQuery = $this->db->query("SELECT * FROM users ORDER BY type ASC");
-        $users = $usersQuery->fetchAll(PDO::FETCH_ASSOC);
-
-        $invitedQuery = $this->db->query("SELECT * FROM register ORDER BY created_at ASC");
-        $invited = $invitedQuery->fetchAll(PDO::FETCH_ASSOC);
+        $users = $this->users->allUsers();
+        $invited = $this->users->allInvitations();
 
         $this->view('admin/invite-users', [
             'title' => 'Users',
@@ -775,7 +692,7 @@ class UserController extends Controller
             exit();
         }
 
-        $link = $_ENV['APP_URL'] . $code;
+        $link = $_ENV['APP_URL'] . 'register/' . $code;
 
 
         $config = Configuration::getDefaultConfiguration();
@@ -783,11 +700,10 @@ class UserController extends Controller
 
         $apiInstance = new TransactionalEmailsApi(new Client(), $config);
 
-        $getAdmin = $this->db->query("SELECT * FROM users WHERE type = 'Administrator'");
-        if ($getAdmin && $getAdmin->rowCount() > 0) {
-            $result = $getAdmin->fetch(PDO::FETCH_ASSOC);
-            $name = $result['name'];
-            $HPLSupport = $result['email'];
+        $administrator = $this->users->administrator();
+        if ($administrator) {
+            $name = $administrator['name'];
+            $HPLSupport = $administrator['email'];
         } else {
             $_SESSION['error'] = 'No administrator found.';
             header("Location: /users");
@@ -866,7 +782,7 @@ class UserController extends Controller
 
             if ($result) {
                 $currentTimestamp = (new DateTime())->format('Y-m-d H:i:s');
-                $stmt = $this->db->query("UPDATE register SET email_code = ?, created_at = ? WHERE email = ?", [$code, $currentTimestamp, $email]);
+                $this->users->refreshInvitation($email, $code, $currentTimestamp);
                 $_SESSION['success'] = 'Invitation sent!';
             }
         } catch (Exception $e) {
@@ -890,13 +806,9 @@ class UserController extends Controller
         }
 
         try {
-            $this->db->query('BEGIN');
-
-            $update = $this->db->query("UPDATE users SET type = ?, updated_at = ? WHERE username = ?", [$type, $date, $username]);
+            $this->users->updateRole($username, $type, $date);
             $_SESSION['success'] = "$username role has been updated to $type.";
-            $this->db->query('COMMIT');
         } catch (Exception $e) {
-            $this->db->query('ROLLBACK');
             $_SESSION['failed'] = "There was a problem updating the role of $username, please try again or contact the web administrator for more information.";
         }
         header("Location: /users");
@@ -914,13 +826,9 @@ class UserController extends Controller
         }
 
         try {
-            $this->db->query('BEGIN');
-
-            $remove = $this->db->query("DELETE FROM register WHERE email = ?", [$email]);
+            $this->users->deleteInvitation($email);
             $_SESSION['success'] = "$email has been removed successfully";
-            $this->db->query('COMMIT');
         } catch (Exception $e) {
-            $this->db->query('ROLLBACK');
             $_SESSION['failed'] = "There was a problem removing $email, please try again or contact the web administrator for more information.";
         }
 
@@ -940,18 +848,14 @@ class UserController extends Controller
             exit();
         }
 
-        $stmt = $this->db->query("SELECT * FROM register WHERE email = ?", [$email]);
-
-        if ($stmt && $stmt->rowCount() > 0) {
+        if ($this->users->invitationByEmail($email)) {
             $_SESSION['warning'] = 'Invitation code is already sent to this email address.';
             $_SESSION['send_code_old_input'] = $_POST;
             header("Location: /users");
             exit();
         }
 
-        $existingUser = $this->db->query("SELECT email FROM users WHERE email = ?", [$email]);
-
-        if ($existingUser && $existingUser->rowCount() > 0) {
+        if ($this->users->emailExists($email)) {
             $_SESSION['warning'] = "$email is already registered.";
             unset($_SESSION['send_code_old_input']);
             header("Location: /users");
@@ -968,11 +872,10 @@ class UserController extends Controller
             $config
         );
 
-        $getAdmin = $this->db->query("SELECT * FROM users WHERE type = 'Administrator'");
-        if ($getAdmin && $getAdmin->rowCount() > 0) {
-            $result = $getAdmin->fetch(PDO::FETCH_ASSOC);
-            $name = $result['name'];
-            $HPLSupport = $result['email'];
+        $administrator = $this->users->administrator();
+        if ($administrator) {
+            $name = $administrator['name'];
+            $HPLSupport = $administrator['email'];
         } else {
             $_SESSION['error'] = 'No administrator found.';
             $_SESSION['send_code_old_input'] = $_POST;
@@ -1052,7 +955,7 @@ class UserController extends Controller
 
             if ($result) {
                 $currentTimestamp = (new DateTime())->format('Y-m-d H:i:s');
-                $stmt = $this->db->query("INSERT INTO register (email_code, email, created_at) VALUES (?, ?, ?)", [$code, $email, $currentTimestamp]);
+                $this->users->createInvitation($email, $code, $currentTimestamp);
                 unset($_SESSION['send_code_old_input']);
                 $_SESSION['success'] = 'Invitation sent!';
             }
@@ -1071,14 +974,12 @@ class UserController extends Controller
             exit();
         }
 
-        $check = $this->db->query("SELECT * FROM register WHERE email_code = ?", [$code]);
-        if ($check && $check->rowCount() !== 1) {
+        $user = $this->users->invitationByCode($code);
+        if (!$user) {
             $_SESSION['error'] = 'Please contact the IT Team for more information';
             header('Location: /users');
             exit();
         }
-
-        $user = $check->fetch(PDO::FETCH_ASSOC);
 
         if ($code === $user['email_code']) {
             $_SESSION['code'] = $code;
